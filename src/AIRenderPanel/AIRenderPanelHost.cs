@@ -25,9 +25,19 @@ namespace AIRenderPanel
 
         public static Guid PanelId => typeof(AIRenderPanelHost).GUID;
 
-        public AIRenderPanelHost()
+        /// <summary>
+        /// 无参构造函数
+        /// </summary>
+        public AIRenderPanelHost() : this(0)
         {
-            RhinoApp.WriteLine("[AI渲染] 正在创建面板控件...");
+        }
+
+        /// <summary>
+        /// 带文档序列号的构造函数 - Rhino 8 可能需要这个签名
+        /// </summary>
+        public AIRenderPanelHost(uint documentSerialNumber)
+        {
+            RhinoApp.WriteLine($"[AI渲染] 正在创建面板控件... (Doc: {documentSerialNumber})");
             
             try
             {
@@ -104,7 +114,10 @@ namespace AIRenderPanel
 
                 RhinoApp.WriteLine($"[AI渲染] WebView2 用户数据目录: {userDataFolder}");
 
-                var options = new CoreWebView2EnvironmentOptions();
+                // 添加启动参数禁用本地文件的 CORS 检查
+                var options = new CoreWebView2EnvironmentOptions(
+                    "--allow-file-access-from-files --disable-web-security"
+                );
                 var environment = await CoreWebView2Environment.CreateAsync(
                     null, 
                     userDataFolder, 

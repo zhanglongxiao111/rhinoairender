@@ -27,7 +27,8 @@ namespace AIRenderPanel
         /// </summary>
         protected override Result RunCommand(RhinoDoc doc, RunMode mode)
         {
-            // 打开面板
+            // 先关闭再打开，强制触发重新实例化（解决空容器问题）
+            Panels.ClosePanel(typeof(AIRenderPanelHost));
             Panels.OpenPanel(typeof(AIRenderPanelHost));
             return Result.Success;
         }

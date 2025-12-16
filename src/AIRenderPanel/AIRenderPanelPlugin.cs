@@ -22,6 +22,11 @@ namespace AIRenderPanel
     {
         public static AIRenderPanelPlugin? Instance { get; private set; }
 
+        /// <summary>
+        /// 强制插件在 Rhino 启动时加载，避免容器先恢复但 Panel 未注册的问题
+        /// </summary>
+        public override PlugInLoadTime LoadTime => PlugInLoadTime.AtStartup;
+
         public AIRenderPanelPlugin()
         {
             Instance = this;

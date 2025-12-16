@@ -158,41 +158,46 @@ namespace AIRenderPanel.Providers
             string? requestId = null;
 
             var modeText = _useProMode ? "专业模式" : "快速模式";
-            RhinoApp.WriteLine($"[AI渲染] {modeText}：开始生成 {count} 张图片");
+            RhinoApp.WriteLine($"[AI渲染] {modeText}：开始并发生成 {count} 张图片");
             RhinoApp.WriteLine($"[AI渲染] 模型: {CurrentModel}");
             RhinoApp.WriteLine($"[AI渲染] 分辨率: {_resolution ?? "默认"}, 比例: {_aspectRatio ?? "Auto"}");
 
+            // 并发生成所有图片
+            var tasks = new List<Task<(byte[] ImageBytes, string? RequestId)>>();
             for (int i = 0; i < count; i++)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                try
+                int index = i; // 捕获索引
+                tasks.Add(Task.Run(async () =>
                 {
-                    RhinoApp.WriteLine($"[AI渲染] 正在生成第 {i + 1}/{count} 张图片...");
-                    
+                    RhinoApp.WriteLine($"[AI渲染] 开始生成第 {index + 1}/{count} 张图片...");
                     var result = await GenerateSingleImageAsync(
                         prompt, 
                         processedImage, 
                         apiKey, 
                         cancellationToken
                     );
-                    
+                    RhinoApp.WriteLine($"[AI渲染] 第 {index + 1}/{count} 张图片生成成功");
+                    return result;
+                }, cancellationToken));
+            }
+
+            try
+            {
+                // 等待所有任务完成
+                var results = await Task.WhenAll(tasks);
+                
+                foreach (var result in results)
+                {
                     images.Add(result.ImageBytes);
                     requestId ??= result.RequestId;
-
-                    RhinoApp.WriteLine($"[AI渲染] 第 {i + 1}/{count} 张图片生成成功");
-
-                    // 如果还有更多图片要生成，等待 0.5 秒（避免速率限制）
-                    if (i < count - 1)
-                    {
-                        await Task.Delay(500, cancellationToken);
-                    }
                 }
-                catch (Exception ex)
-                {
-                    RhinoApp.WriteLine($"[AI渲染] 生成失败 ({i + 1}/{count}): {ex.Message}");
-                    throw;
-                }
+                
+                RhinoApp.WriteLine($"[AI渲染] 全部 {count} 张图片生成完成");
+            }
+            catch (Exception ex)
+            {
+                RhinoApp.WriteLine($"[AI渲染] 并发生成失败: {ex.Message}");
+                throw;
             }
 
             return new GenerateResult

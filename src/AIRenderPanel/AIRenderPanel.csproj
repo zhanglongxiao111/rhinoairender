@@ -11,13 +11,17 @@
     <Version>1.0.0</Version>
     <Authors>AI Render Panel</Authors>
     <Description>Rhino 8 AI Render Panel Plugin</Description>
+    <!-- 强制复制所有依赖到输出目录（解决 WebView2 DLL 加载问题） -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="RhinoCommon" Version="8.0.23304.9001" />
     <PackageReference Include="Eto.Forms" Version="2.8.3" />
     <PackageReference Include="Eto.Platform.Windows" Version="2.8.3" />
-    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2420.47" />
+    <!-- 注意：WebView2 版本需要与系统运行时兼容，使用较老的稳定版本 -->
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.1823.32" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 
