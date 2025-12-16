@@ -10,9 +10,10 @@ namespace AIRenderPanel
 {
     /// <summary>
     /// AI 渲染面板宿主 - 使用 WinForms UserControl 承载 WebView2
+    /// 按照 McNeel 官方示例，只需继承 UserControl 并添加 Guid 属性
     /// </summary>
     [System.Runtime.InteropServices.Guid("B1C2D3E4-F5A6-7890-BCDE-F12345678901")]
-    public class AIRenderPanelHost : System.Windows.Forms.UserControl, IPanel
+    public partial class AIRenderPanelHost : System.Windows.Forms.UserControl
     {
         private WebView2? _webView;
         private MessageHandler? _messageHandler;
@@ -406,24 +407,5 @@ namespace AIRenderPanel
         {
             _webView?.CoreWebView2?.OpenDevToolsWindow();
         }
-
-        #region IPanel 接口实现
-
-        public void PanelShown(uint documentSerialNumber, ShowPanelReason reason)
-        {
-            RhinoApp.WriteLine("[AI渲染] 面板已显示");
-        }
-
-        public void PanelHidden(uint documentSerialNumber, ShowPanelReason reason)
-        {
-            RhinoApp.WriteLine("[AI渲染] 面板已隐藏");
-        }
-
-        public void PanelClosing(uint documentSerialNumber, bool onCloseDocument)
-        {
-            RhinoApp.WriteLine("[AI渲染] 面板正在关闭");
-        }
-
-        #endregion
     }
 }
