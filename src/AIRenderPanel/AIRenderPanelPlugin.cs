@@ -34,12 +34,34 @@ namespace AIRenderPanel
         {
             try
             {
+                // 加载自定义图标
+                System.Drawing.Icon panelIcon;
+                try
+                {
+                    var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+                    using var stream = assembly.GetManifestResourceStream("AIRenderPanel.Resources.icon.png");
+                    if (stream != null)
+                    {
+                        using var bitmap = new System.Drawing.Bitmap(stream);
+                        var hIcon = bitmap.GetHicon();
+                        panelIcon = System.Drawing.Icon.FromHandle(hIcon);
+                    }
+                    else
+                    {
+                        panelIcon = System.Drawing.SystemIcons.Application;
+                    }
+                }
+                catch
+                {
+                    panelIcon = System.Drawing.SystemIcons.Application;
+                }
+
                 // 注册面板
                 Panels.RegisterPanel(
                     this,
                     typeof(AIRenderPanelHost),
                     "AI 渲染",
-                    System.Drawing.SystemIcons.Application,
+                    panelIcon,
                     PanelType.PerDoc
                 );
 

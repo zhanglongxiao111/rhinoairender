@@ -31,4 +31,9 @@
     <EmbeddedResource Include="..\web-ui\dist\**\*" LinkBase="WebUI" />
   </ItemGroup>
 
+  <!-- Embed plugin icon -->
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\icon.png" LogicalName="AIRenderPanel.Resources.icon.png" />
+  </ItemGroup>
+
 </Project>
