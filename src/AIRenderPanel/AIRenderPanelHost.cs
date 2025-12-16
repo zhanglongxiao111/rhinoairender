@@ -26,18 +26,35 @@ namespace AIRenderPanel
 
         public AIRenderPanelHost()
         {
-            // 创建 WebView2 控件
-            _webView = new WebView2();
-            _webView.Dock = System.Windows.Forms.DockStyle.Fill;
-            _webView.CoreWebView2InitializationCompleted += OnWebView2Initialized;
+            RhinoApp.WriteLine("[AI渲染] 正在创建面板控件...");
             
-            // 添加到 UserControl
-            Controls.Add(_webView);
+            try
+            {
+                // 创建 WebView2 控件
+                _webView = new WebView2();
+                _webView.Dock = System.Windows.Forms.DockStyle.Fill;
+                _webView.CoreWebView2InitializationCompleted += OnWebView2Initialized;
+                
+                // 添加到 UserControl
+                Controls.Add(_webView);
 
-            // 初始化消息处理器
-            _messageHandler = new MessageHandler(SendMessageToWeb);
+                // 初始化消息处理器
+                _messageHandler = new MessageHandler(SendMessageToWeb);
 
-            // 初始化 WebView2
+                // 使用 Load 事件触发初始化（确保控件已添加到窗口）
+                this.Load += OnControlLoad;
+                
+                RhinoApp.WriteLine("[AI渲染] 面板控件创建完成，等待 Load 事件...");
+            }
+            catch (Exception ex)
+            {
+                RhinoApp.WriteLine($"[AI渲染] 面板控件创建失败: {ex.Message}");
+            }
+        }
+
+        private void OnControlLoad(object? sender, EventArgs e)
+        {
+            RhinoApp.WriteLine("[AI渲染] 控件 Load 事件触发，开始初始化 WebView2...");
             InitializeWebView2Async();
         }
 
@@ -45,6 +62,8 @@ namespace AIRenderPanel
         {
             try
             {
+                RhinoApp.WriteLine("[AI渲染] 正在初始化 WebView2 环境...");
+                
                 // 设置用户数据目录
                 var userDataFolder = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -58,6 +77,8 @@ namespace AIRenderPanel
                     Directory.CreateDirectory(userDataFolder);
                 }
 
+                RhinoApp.WriteLine($"[AI渲染] WebView2 用户数据目录: {userDataFolder}");
+
                 var options = new CoreWebView2EnvironmentOptions();
                 var environment = await CoreWebView2Environment.CreateAsync(
                     null, 
@@ -65,11 +86,17 @@ namespace AIRenderPanel
                     options
                 );
 
+                RhinoApp.WriteLine("[AI渲染] WebView2 环境创建成功，正在初始化控件...");
+
                 await _webView!.EnsureCoreWebView2Async(environment);
+                
+                RhinoApp.WriteLine("[AI渲染] WebView2 控件初始化完成");
             }
             catch (Exception ex)
             {
                 RhinoApp.WriteLine($"[AI渲染] WebView2 初始化失败: {ex.Message}");
+                RhinoApp.WriteLine($"[AI渲染] 异常类型: {ex.GetType().Name}");
+                RhinoApp.WriteLine($"[AI渲染] 堆栈: {ex.StackTrace}");
             }
         }
 
