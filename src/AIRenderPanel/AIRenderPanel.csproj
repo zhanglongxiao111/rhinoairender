@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net7.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <RootNamespace>AIRenderPanel</RootNamespace>
+    <AssemblyName>AIRenderPanel</AssemblyName>
+    <Version>1.0.0</Version>
+    <Authors>AI Render Panel</Authors>
+    <Description>Rhino 8 AI Render Panel Plugin</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="RhinoCommon" Version="8.0.23304.9001" />
+    <PackageReference Include="Eto.Forms" Version="2.8.3" />
+    <PackageReference Include="Eto.Platform.Windows" Version="2.8.3" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2420.47" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <!-- WindowsForms Integration for hosting WPF in WinForms -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.WindowsDesktop.App.WPF" />
+  </ItemGroup>
+
+  <!-- Embed Web UI dist files for production -->
+  <ItemGroup Condition="Exists('..\web-ui\dist\')">
+    <EmbeddedResource Include="..\web-ui\dist\**\*" LinkBase="WebUI" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,29 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AIRenderPanel", "src\AIRenderPanel\AIRenderPanel.csproj", "{F7C4EE69-9D0A-CB2D-4663-F19847B13B51}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F7C4EE69-9D0A-CB2D-4663-F19847B13B51}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F7C4EE69-9D0A-CB2D-4663-F19847B13B51}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F7C4EE69-9D0A-CB2D-4663-F19847B13B51}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F7C4EE69-9D0A-CB2D-4663-F19847B13B51}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{F7C4EE69-9D0A-CB2D-4663-F19847B13B51} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {732B783D-2EF8-403F-B1DC-8950F87396B9}
+	EndGlobalSection
+EndGlobal
