@@ -16,7 +16,10 @@ namespace AIRenderPanel.Providers
             _providers = new Dictionary<string, IImageProvider>(StringComparer.OrdinalIgnoreCase)
             {
                 ["mock"] = new MockProvider(),
-                ["gemini"] = new GeminiProvider(() => _settingsService.LoadSettings().ApiKey)
+                ["gemini"] = new GeminiProvider(
+                    () => _settingsService.LoadSettings().ApiKey,
+                    () => _settingsService.LoadSettings().ProxyUrl
+                )
             };
         }
 

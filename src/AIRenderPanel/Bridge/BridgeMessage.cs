@@ -109,6 +109,13 @@ namespace AIRenderPanel.Bridge
 
         [JsonProperty("devMode")]
         public bool DevMode { get; set; } = false;
+
+        /// <summary>
+        /// 代理地址，例如 http://127.0.0.1:7890
+        /// 留空则使用系统代理
+        /// </summary>
+        [JsonProperty("proxyUrl")]
+        public string? ProxyUrl { get; set; }
     }
 
     /// <summary>

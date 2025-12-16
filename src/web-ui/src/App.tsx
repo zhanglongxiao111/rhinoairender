@@ -523,6 +523,23 @@ function App() {
                                     value={settings.apiKey || ''}
                                     onChange={(e) => setSettings({ ...settings, apiKey: e.target.value })}
                                 />
+                                <p className="text-muted" style={{ fontSize: '11px', marginTop: '4px' }}>
+                                    也可设置环境变量 GEMINI_API_KEY
+                                </p>
+                            </div>
+
+                            <div className="control-group">
+                                <label className="label">代理地址</label>
+                                <input
+                                    type="text"
+                                    className="input"
+                                    placeholder="例如 http://127.0.0.1:7890"
+                                    value={settings.proxyUrl || ''}
+                                    onChange={(e) => setSettings({ ...settings, proxyUrl: e.target.value })}
+                                />
+                                <p className="text-muted" style={{ fontSize: '11px', marginTop: '4px' }}>
+                                    留空使用系统代理，也可设置 HTTP_PROXY 环境变量
+                                </p>
                             </div>
 
                             <div className="control-divider" />

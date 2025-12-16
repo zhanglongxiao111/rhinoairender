@@ -36,6 +36,7 @@ export interface SettingsData {
     apiKey?: string;
     provider: string;
     devMode: boolean;
+    proxyUrl?: string;  // 代理地址，例如 http://127.0.0.1:7890
 }
 
 export interface OpenFolderRequest {
