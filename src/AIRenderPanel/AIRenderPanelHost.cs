@@ -31,6 +31,18 @@ namespace AIRenderPanel
             
             try
             {
+                // 先添加一个简单的 Label 测试面板是否能显示
+                var testLabel = new System.Windows.Forms.Label
+                {
+                    Text = "AI 渲染面板正在加载...",
+                    Dock = System.Windows.Forms.DockStyle.Top,
+                    Height = 30,
+                    TextAlign = System.Drawing.ContentAlignment.MiddleCenter,
+                    BackColor = System.Drawing.Color.DarkSlateGray,
+                    ForeColor = System.Drawing.Color.White
+                };
+                Controls.Add(testLabel);
+                
                 // 创建 WebView2 控件
                 _webView = new WebView2();
                 _webView.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -50,6 +62,18 @@ namespace AIRenderPanel
             catch (Exception ex)
             {
                 RhinoApp.WriteLine($"[AI渲染] 面板控件创建失败: {ex.Message}");
+                RhinoApp.WriteLine($"[AI渲染] 异常堆栈: {ex.StackTrace}");
+                
+                // 即使出错也显示一个错误标签
+                var errorLabel = new System.Windows.Forms.Label
+                {
+                    Text = $"加载失败: {ex.Message}",
+                    Dock = System.Windows.Forms.DockStyle.Fill,
+                    TextAlign = System.Drawing.ContentAlignment.MiddleCenter,
+                    BackColor = System.Drawing.Color.DarkRed,
+                    ForeColor = System.Drawing.Color.White
+                };
+                Controls.Add(errorLabel);
             }
         }
 
