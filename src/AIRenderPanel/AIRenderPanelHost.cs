@@ -13,7 +13,7 @@ namespace AIRenderPanel
     /// 按照 McNeel 官方示例，只需继承 UserControl 并添加 Guid 属性
     /// </summary>
     [System.Runtime.InteropServices.Guid("B1C2D3E4-F5A6-7890-BCDE-F12345678901")]
-    public partial class AIRenderPanelHost : System.Windows.Forms.UserControl
+    public class AIRenderPanelHost : System.Windows.Forms.UserControl
     {
         private WebView2? _webView;
         private MessageHandler? _messageHandler;

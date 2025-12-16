@@ -56,13 +56,13 @@ namespace AIRenderPanel
                     panelIcon = System.Drawing.SystemIcons.Application;
                 }
 
-                // 注册面板
+                // 注册面板 - 使用 System 类型（单例模式）
                 Panels.RegisterPanel(
                     this,
                     typeof(AIRenderPanelHost),
                     "AI 渲染",
                     panelIcon,
-                    PanelType.PerDoc
+                    PanelType.System
                 );
 
                 RhinoApp.WriteLine("AI 渲染面板插件已加载");
