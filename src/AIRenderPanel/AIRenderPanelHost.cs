@@ -151,7 +151,15 @@ namespace AIRenderPanel
 
         private string? GetLocalUIPath()
         {
-            // 查找 Web UI 目录
+            // 首先尝试从嵌入资源提取
+            var extractedPath = ExtractEmbeddedWebUI();
+            if (!string.IsNullOrEmpty(extractedPath))
+            {
+                RhinoApp.WriteLine($"[AI渲染] 使用嵌入资源: {extractedPath}");
+                return extractedPath;
+            }
+
+            // 查找 Web UI 目录（开发时的备用路径）
             var assemblyDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             if (string.IsNullOrEmpty(assemblyDir)) return null;
 
@@ -172,6 +180,88 @@ namespace AIRenderPanel
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// 从嵌入资源提取 Web UI 文件
+        /// </summary>
+        private string? ExtractEmbeddedWebUI()
+        {
+            try
+            {
+                var assembly = Assembly.GetExecutingAssembly();
+                var resourceNames = assembly.GetManifestResourceNames();
+                
+                // 查找 WebUI 相关资源
+                var webUIResources = resourceNames.Where(n => n.Contains("WebUI")).ToList();
+                
+                if (webUIResources.Count == 0)
+                {
+                    RhinoApp.WriteLine("[AI渲染] 未找到嵌入的 Web UI 资源");
+                    foreach (var name in resourceNames)
+                    {
+                        RhinoApp.WriteLine($"[AI渲染] 可用资源: {name}");
+                    }
+                    return null;
+                }
+
+                // 提取到临时目录
+                var extractDir = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "AIRenderPanel",
+                    "WebUI"
+                );
+
+                // 确保目录存在
+                if (!Directory.Exists(extractDir))
+                {
+                    Directory.CreateDirectory(extractDir);
+                }
+
+                // 提取所有资源
+                foreach (var resourceName in webUIResources)
+                {
+                    using var stream = assembly.GetManifestResourceStream(resourceName);
+                    if (stream == null) continue;
+
+                    // 从资源名称解析文件路径
+                    // 格式: AIRenderPanel.WebUI.index.html -> index.html
+                    // 格式: AIRenderPanel.WebUI.assets.index-xxx.js -> assets/index-xxx.js
+                    var relativePath = resourceName.Replace("AIRenderPanel.WebUI.", "");
+                    
+                    // 处理 assets 子目录
+                    if (relativePath.StartsWith("assets."))
+                    {
+                        var assetsDir = Path.Combine(extractDir, "assets");
+                        if (!Directory.Exists(assetsDir))
+                        {
+                            Directory.CreateDirectory(assetsDir);
+                        }
+                        relativePath = Path.Combine("assets", relativePath.Substring("assets.".Length));
+                    }
+
+                    var filePath = Path.Combine(extractDir, relativePath);
+
+                    // 只在文件不存在或资源更新时提取
+                    using var reader = new BinaryReader(stream);
+                    var bytes = reader.ReadBytes((int)stream.Length);
+                    File.WriteAllBytes(filePath, bytes);
+                }
+
+                var indexPath = Path.Combine(extractDir, "index.html");
+                if (File.Exists(indexPath))
+                {
+                    return "file:///" + indexPath.Replace("\\", "/");
+                }
+
+                RhinoApp.WriteLine($"[AI渲染] index.html 未找到于 {extractDir}");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                RhinoApp.WriteLine($"[AI渲染] 提取 Web UI 失败: {ex.Message}");
+                return null;
+            }
         }
 
         private string GetFallbackHtml()
