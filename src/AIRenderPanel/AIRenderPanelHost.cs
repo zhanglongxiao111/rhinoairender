@@ -19,6 +19,7 @@ namespace AIRenderPanel
         private MessageHandler? _messageHandler;
         private bool _isInitialized = false;
         private readonly Queue<BridgeMessage> _pendingMessages = new();
+        private System.Windows.Forms.Label? _loadingLabel; // 加载提示标签
 
         // 开发模式下的前端地址
         private const string DEV_SERVER_URL = "http://localhost:5173";
@@ -42,7 +43,7 @@ namespace AIRenderPanel
             try
             {
                 // 先添加一个简单的 Label 测试面板是否能显示
-                var testLabel = new System.Windows.Forms.Label
+                _loadingLabel = new System.Windows.Forms.Label
                 {
                     Text = "AI 渲染面板正在加载...",
                     Dock = System.Windows.Forms.DockStyle.Top,
@@ -51,7 +52,7 @@ namespace AIRenderPanel
                     BackColor = System.Drawing.Color.DarkSlateGray,
                     ForeColor = System.Drawing.Color.White
                 };
-                Controls.Add(testLabel);
+                Controls.Add(_loadingLabel);
                 
                 // 创建 WebView2 控件
                 _webView = new WebView2();
@@ -164,6 +165,15 @@ namespace AIRenderPanel
             LoadUI();
 
             _isInitialized = true;
+            
+            // 移除加载提示标签
+            if (_loadingLabel != null)
+            {
+                Controls.Remove(_loadingLabel);
+                _loadingLabel.Dispose();
+                _loadingLabel = null;
+            }
+            
             RhinoApp.WriteLine("[AI渲染] WebView2 初始化完成");
         }
 
