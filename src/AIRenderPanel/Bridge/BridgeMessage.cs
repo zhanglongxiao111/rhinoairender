@@ -125,7 +125,7 @@ namespace AIRenderPanel.Bridge
         public string? ApiKey { get; set; }
 
         [JsonProperty("provider")]
-        public string Provider { get; set; } = "mock";
+        public string Provider { get; set; } = "gemini";
 
         [JsonProperty("devMode")]
         public bool DevMode { get; set; } = false;
@@ -136,6 +136,18 @@ namespace AIRenderPanel.Bridge
         /// </summary>
         [JsonProperty("proxyUrl")]
         public string? ProxyUrl { get; set; }
+
+        /// <summary>
+        /// 是否使用 Gemini Developer API（默认开启）
+        /// </summary>
+        [JsonProperty("useGeminiApi")]
+        public bool UseGeminiApi { get; set; } = true;
+
+        /// <summary>
+        /// 是否使用 Vertex AI Express（作为备用或单独使用）
+        /// </summary>
+        [JsonProperty("useVertexAI")]
+        public bool UseVertexAI { get; set; } = false;
     }
 
     /// <summary>
@@ -272,6 +284,9 @@ namespace AIRenderPanel.Bridge
 
         [JsonProperty("screenshotPath")]
         public string? ScreenshotPath { get; set; }
+
+        [JsonProperty("isFavorite")]
+        public bool IsFavorite { get; set; } = false;
     }
 
     /// <summary>
@@ -281,6 +296,30 @@ namespace AIRenderPanel.Bridge
     {
         [JsonProperty("items")]
         public List<HistoryItem> Items { get; set; } = new();
+
+        [JsonProperty("favoriteIds")]
+        public List<string> FavoriteIds { get; set; } = new();
+    }
+
+    /// <summary>
+    /// 切换收藏请求
+    /// </summary>
+    public class ToggleFavoriteRequest
+    {
+        [JsonProperty("historyId")]
+        public string HistoryId { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// 收藏状态响应
+    /// </summary>
+    public class FavoriteStatusResponse
+    {
+        [JsonProperty("historyId")]
+        public string HistoryId { get; set; } = string.Empty;
+
+        [JsonProperty("isFavorite")]
+        public bool IsFavorite { get; set; }
     }
 
     /// <summary>

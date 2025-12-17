@@ -15,7 +15,6 @@ namespace AIRenderPanel.Providers
             _settingsService = settingsService;
             _providers = new Dictionary<string, IImageProvider>(StringComparer.OrdinalIgnoreCase)
             {
-                ["mock"] = new MockProvider(),
                 ["gemini"] = new GeminiProvider(
                     () => _settingsService.LoadSettings().ApiKey,
                     () => _settingsService.LoadSettings().ProxyUrl
@@ -29,15 +28,15 @@ namespace AIRenderPanel.Providers
         public IImageProvider GetCurrentProvider()
         {
             var settings = _settingsService.LoadSettings();
-            var providerName = settings.Provider ?? "mock";
+            var providerName = settings.Provider ?? "gemini";
 
             if (_providers.TryGetValue(providerName, out var provider))
             {
                 return provider;
             }
 
-            // 默认返回 Mock
-            return _providers["mock"];
+            // 默认返回 Gemini
+            return _providers["gemini"];
         }
 
         /// <summary>

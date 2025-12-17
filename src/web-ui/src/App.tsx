@@ -70,6 +70,7 @@ function App() {
 
     // UI 状态
     const [showSettings, setShowSettings] = useState(false);
+    const [showFavoritesOnly, setShowFavoritesOnly] = useState(false); // 只显示收藏
     const [lightboxImage, setLightboxImage] = useState<string | null>(null); // Lightbox 放大图片
     const [comparePosition, setComparePosition] = useState(50); // AB 对比滑块位置 (0-100)
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null); // 拖拽排序
@@ -77,8 +78,10 @@ function App() {
         outputMode: 'auto',
         outputFolder: '',
         apiKey: '',
-        provider: 'gemini-3-pro-image',
+        provider: 'gemini',
         devMode: false,
+        useGeminiApi: true,
+        useVertexAI: false,
     });
 
     // 错误状态
@@ -134,6 +137,19 @@ function App() {
             if (data.screenshot) {
                 setPreviewImage(data.screenshot);
             }
+        },
+        onFavoriteStatus: (data) => {
+            // 更新历史记录中的收藏状态
+            setHistory(prev => prev.map(item =>
+                item.id === data.historyId
+                    ? { ...item, isFavorite: data.isFavorite }
+                    : item
+            ));
+            // 如果当前选中的项是被操作的项，也更新它
+            if (selectedHistoryItem?.id === data.historyId) {
+                setSelectedHistoryItem(prev => prev ? { ...prev, isFavorite: data.isFavorite } : null);
+            }
+            setStatusMessage(data.isFavorite ? '已收藏' : '已取消收藏');
         },
     });
 
@@ -229,6 +245,28 @@ function App() {
         setDraggedIndex(null);
     }, []);
 
+    // 复制提示词到剪贴板
+    const handleCopyPrompt = useCallback((text: string) => {
+        navigator.clipboard.writeText(text).then(() => {
+            setStatusMessage('已复制到剪贴板');
+            setTimeout(() => setStatusMessage('就绪'), 1500);
+        }).catch(() => {
+            setError('复制失败');
+        });
+    }, []);
+
+    // 使用历史记录的设置
+    const handleUseHistorySettings = useCallback((item: HistoryItem) => {
+        setPrompt(item.prompt);
+        if (item.source === 'named' && item.namedView) {
+            setSource('named');
+            setSelectedNamedView(item.namedView);
+        } else {
+            setSource('active');
+        }
+        setStatusMessage('已加载历史设置');
+    }, []);
+
 
     const isProcessing = status === 'generating' || status === 'capturing';
 
@@ -240,9 +278,31 @@ function App() {
                     <div className="app-title-icon" />
                     <span>AI RENDER</span>
                 </div>
-                <div className="status-indicator">
-                    <span className={`status-dot ${isProcessing ? 'processing' : status === 'error' ? 'error' : ''}`} />
-                    <span>{statusMessage}</span>
+                <div className="header-right">
+                    <div className="status-indicator">
+                        <span className={`status-dot ${isProcessing ? 'processing' : status === 'error' ? 'error' : ''}`} />
+                        <span>{statusMessage}</span>
+                    </div>
+                    <button
+                        className="btn btn-ghost btn-icon btn-sm"
+                        onClick={() => {
+                            if (document.fullscreenElement) {
+                                document.exitFullscreen();
+                            } else {
+                                document.documentElement.requestFullscreen();
+                            }
+                        }}
+                        title="全屏"
+                    >
+                        ⛶
+                    </button>
+                    <button
+                        className="btn btn-ghost btn-icon btn-sm"
+                        onClick={() => setShowSettings(true)}
+                        title="设置"
+                    >
+                        ⚙
+                    </button>
                 </div>
             </header>
 
@@ -537,49 +597,91 @@ function App() {
 
                 {/* 历史面板 */}
                 <aside className="history-panel">
-                    <div className="history-header">历史记录</div>
+                    <div className="history-header">
+                        <span>历史记录</span>
+                        <button
+                            className={`btn btn-ghost btn-sm ${showFavoritesOnly ? 'active' : ''}`}
+                            onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                            title={showFavoritesOnly ? '显示全部' : '只显示收藏'}
+                            style={{ padding: '0 6px', fontSize: '14px' }}
+                        >
+                            {showFavoritesOnly ? '⭐' : '☆'}
+                        </button>
+                    </div>
                     <div className="history-list">
-                        {history.length === 0 ? (
+                        {history.filter(item => !showFavoritesOnly || item.isFavorite).length === 0 ? (
                             <div className="history-empty">
-                                <span>暂无记录</span>
+                                <span>{showFavoritesOnly ? '暂无收藏' : '暂无记录'}</span>
                             </div>
                         ) : (
-                            history.map((item) => (
-                                <div
-                                    key={item.id}
-                                    className={`history-item ${selectedHistoryItem?.id === item.id ? 'active' : ''}`}
-                                    onClick={() => {
-                                        setSelectedHistoryItem(item);
-                                        // 加载原图和截图
-                                        if (item.paths && item.paths.length > 0) {
-                                            bridge.loadHistoryImages(item.paths, item.screenshotPath);
-                                        }
-                                    }}
-                                >
-                                    <div className="history-thumb">
-                                        {item.thumbnails.length > 0 && (
-                                            <img src={`data:image/png;base64,${item.thumbnails[0]}`} alt="" />
-                                        )}
-                                    </div>
-                                    <div className="history-info">
-                                        <div className="history-prompt">{item.prompt}</div>
-                                        <div className="history-meta">
-                                            {new Date(item.timestamp).toLocaleDateString('zh-CN')}
+                            history
+                                .filter(item => !showFavoritesOnly || item.isFavorite)
+                                .map((item) => (
+                                    <div
+                                        key={item.id}
+                                        className={`history-item ${selectedHistoryItem?.id === item.id ? 'active' : ''}`}
+                                        onClick={() => {
+                                            setSelectedHistoryItem(item);
+                                            // 加载原图和截图
+                                            if (item.paths && item.paths.length > 0) {
+                                                bridge.loadHistoryImages(item.paths, item.screenshotPath);
+                                            }
+                                        }}
+                                        onDoubleClick={() => {
+                                            // 双击填充提示词到输入框
+                                            handleUseHistorySettings(item);
+                                        }}
+                                        title="单击查看 · 双击使用此设置"
+                                    >
+                                        <div className="history-thumb">
+                                            {item.thumbnails.length > 0 && (
+                                                <img src={`data:image/png;base64,${item.thumbnails[0]}`} alt="" />
+                                            )}
+                                            {item.isFavorite && <span className="history-favorite-badge">⭐</span>}
+                                        </div>
+                                        <div className="history-info">
+                                            <div className="history-prompt">{item.prompt}</div>
+                                            <div className="history-meta">
+                                                {new Date(item.timestamp).toLocaleDateString('zh-CN')}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))
+                                ))
                         )}
                     </div>
-                    {selectedHistoryItem && selectedHistoryItem.paths.length > 0 && (
+                    {selectedHistoryItem && (
                         <div className="history-footer">
-                            <button
-                                className="btn btn-secondary btn-sm"
-                                style={{ width: '100%' }}
-                                onClick={() => handleOpenFolder(selectedHistoryItem.paths[0])}
-                            >
-                                打开文件夹
-                            </button>
+                            <div className="history-actions">
+                                <button
+                                    className={`btn btn-ghost btn-sm ${selectedHistoryItem.isFavorite ? 'active' : ''}`}
+                                    onClick={() => bridge.toggleFavorite(selectedHistoryItem.id)}
+                                    title={selectedHistoryItem.isFavorite ? '取消收藏' : '收藏'}
+                                >
+                                    {selectedHistoryItem.isFavorite ? '⭐' : '☆'}
+                                </button>
+                                <button
+                                    className="btn btn-ghost btn-sm"
+                                    onClick={() => handleCopyPrompt(selectedHistoryItem.prompt)}
+                                    title="复制提示词"
+                                >
+                                    📋
+                                </button>
+                                <button
+                                    className="btn btn-secondary btn-sm"
+                                    style={{ flex: 1 }}
+                                    onClick={() => handleUseHistorySettings(selectedHistoryItem)}
+                                >
+                                    使用此设置
+                                </button>
+                                <button
+                                    className="btn btn-ghost btn-sm"
+                                    onClick={() => handleOpenFolder(selectedHistoryItem.paths[0])}
+                                    title="打开文件夹"
+                                    disabled={!selectedHistoryItem.paths.length}
+                                >
+                                    📁
+                                </button>
+                            </div>
                         </div>
                     )}
                 </aside>
@@ -622,6 +724,31 @@ function App() {
                                     />
                                     <p className="text-muted" style={{ fontSize: '11px', marginTop: '4px' }}>
                                         留空使用系统代理，也可设置 HTTP_PROXY 环境变量
+                                    </p>
+                                </div>
+
+                                <div className="control-group">
+                                    <label className="label">API 端点</label>
+                                    <div className="checkbox-group">
+                                        <label className="checkbox-label">
+                                            <input
+                                                type="checkbox"
+                                                checked={settings.useGeminiApi !== false}
+                                                onChange={(e) => setSettings({ ...settings, useGeminiApi: e.target.checked })}
+                                            />
+                                            <span>Gemini Developer API</span>
+                                        </label>
+                                        <label className="checkbox-label">
+                                            <input
+                                                type="checkbox"
+                                                checked={settings.useVertexAI === true}
+                                                onChange={(e) => setSettings({ ...settings, useVertexAI: e.target.checked })}
+                                            />
+                                            <span>Vertex AI Express（备用）</span>
+                                        </label>
+                                    </div>
+                                    <p className="text-muted" style={{ fontSize: '11px', marginTop: '4px' }}>
+                                        同时勾选时，优先使用 Gemini API，失败后自动切换到 Vertex AI
                                     </p>
                                 </div>
 

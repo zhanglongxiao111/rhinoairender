@@ -37,6 +37,8 @@ export interface SettingsData {
     provider: string;
     devMode: boolean;
     proxyUrl?: string;  // 代理地址，例如 http://127.0.0.1:7890
+    useGeminiApi?: boolean;  // 使用 Gemini Developer API
+    useVertexAI?: boolean;   // 使用 Vertex AI Express（备用）
 }
 
 export interface OpenFolderRequest {
@@ -93,10 +95,12 @@ export interface HistoryItem {
     paths: string[];
     provider: string;
     screenshotPath?: string; // 原始截图路径
+    isFavorite?: boolean; // 是否收藏
 }
 
 export interface HistoryUpdateResponse {
     items: HistoryItem[];
+    favoriteIds?: string[];
 }
 
 // ============================================

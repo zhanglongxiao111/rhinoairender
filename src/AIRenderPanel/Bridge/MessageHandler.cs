@@ -18,6 +18,7 @@ namespace AIRenderPanel.Bridge
         private readonly HistoryService _historyService;
         private readonly SettingsService _settingsService;
         private readonly ProviderManager _providerManager;
+        private readonly FavoritesService _favoritesService;
         
         private CancellationTokenSource? _currentCts;
 
@@ -29,6 +30,7 @@ namespace AIRenderPanel.Bridge
             _historyService = new HistoryService();
             _settingsService = new SettingsService();
             _providerManager = new ProviderManager(_settingsService);
+            _favoritesService = new FavoritesService();
         }
 
         /// <summary>
@@ -79,6 +81,10 @@ namespace AIRenderPanel.Bridge
 
                     case "loadHistoryImages":
                         HandleLoadHistoryImages(message.Data);
+                        break;
+
+                    case "toggleFavorite":
+                        HandleToggleFavorite(message.Data);
                         break;
 
                     default:
@@ -257,11 +263,27 @@ namespace AIRenderPanel.Bridge
                 // 调用 Provider
                 var provider = _providerManager.GetCurrentProvider();
                 
-                // 如果是 GeminiProvider，设置分辨率和比例参数
+                // 如果是 GeminiProvider，设置模式和参数
                 if (provider is GeminiProvider geminiProvider)
                 {
+                    // 设置生成模式：pro = 专业模式，flash = 快速模式
+                    bool useProMode = request.Mode?.ToLower() != "flash";
+                    geminiProvider.SetMode(useProMode);
+                    
+                    // 设置生成参数（分辨率、比例）
                     geminiProvider.SetGenerationParams(request.Resolution, request.AspectRatio);
-                    RhinoApp.WriteLine($"[AI渲染] 使用 Gemini Provider, 分辨率: {request.Resolution}, 比例: {request.AspectRatio ?? "Auto"}");
+                    
+                    // 快速模式下设置对比度调整
+                    if (!useProMode)
+                    {
+                        geminiProvider.SetContrastAdjust(request.ContrastAdjust);
+                    }
+                    
+                    // 设置 API 端点选项
+                    var settings = _settingsService.LoadSettings();
+                    geminiProvider.SetApiEndpoints(settings.UseGeminiApi, settings.UseVertexAI);
+                    
+                    RhinoApp.WriteLine($"[AI渲染] 使用 Gemini Provider, 模式: {(useProMode ? "专业" : "快速")}, 分辨率: {request.Resolution}, 比例: {request.AspectRatio ?? "Auto"}");
                 }
                 
                 var result = await provider.GenerateAsync(
@@ -382,7 +404,19 @@ namespace AIRenderPanel.Bridge
         private void HandleGetHistory()
         {
             var items = _historyService.GetHistoryItems();
-            _sendMessage("historyUpdate", new HistoryUpdateResponse { Items = items });
+            var favoriteIds = _favoritesService.GetFavoriteIds();
+            
+            // 标记收藏状态
+            foreach (var item in items)
+            {
+                item.IsFavorite = favoriteIds.Contains(item.Id);
+            }
+            
+            _sendMessage("historyUpdate", new HistoryUpdateResponse 
+            { 
+                Items = items,
+                FavoriteIds = favoriteIds.ToList()
+            });
         }
 
         private void HandleLoadHistoryImages(object? data)
@@ -433,6 +467,31 @@ namespace AIRenderPanel.Bridge
                 Message = message,
                 Details = details
             });
+        }
+
+        private void HandleToggleFavorite(object? data)
+        {
+            if (data == null) return;
+
+            try
+            {
+                var request = JsonConvert.DeserializeObject<ToggleFavoriteRequest>(data.ToString()!);
+                if (request == null || string.IsNullOrEmpty(request.HistoryId)) return;
+
+                var isFavorite = _favoritesService.ToggleFavorite(request.HistoryId);
+                
+                _sendMessage("favoriteStatus", new FavoriteStatusResponse
+                {
+                    HistoryId = request.HistoryId,
+                    IsFavorite = isFavorite
+                });
+
+                RhinoApp.WriteLine($"[AI渲染] 收藏状态切换: {request.HistoryId} -> {(isFavorite ? "已收藏" : "取消收藏")}");
+            }
+            catch (Exception ex)
+            {
+                SendError("切换收藏失败", ex.Message);
+            }
         }
     }
 }

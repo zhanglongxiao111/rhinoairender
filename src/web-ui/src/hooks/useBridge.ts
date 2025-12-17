@@ -22,6 +22,7 @@ export interface BridgeCallbacks {
     onSettings?: (data: SettingsData) => void;
     onHistoryUpdate?: (data: HistoryUpdateResponse) => void;
     onHistoryImages?: (data: { images: string[], screenshot?: string }) => void;
+    onFavoriteStatus?: (data: { historyId: string, isFavorite: boolean }) => void;
 }
 
 /**
@@ -85,6 +86,9 @@ export function useBridge(callbacks: BridgeCallbacks) {
                     case 'historyImages':
                         callbacksRef.current.onHistoryImages?.(message.data as { images: string[] });
                         break;
+                    case 'favoriteStatus':
+                        callbacksRef.current.onFavoriteStatus?.(message.data as { historyId: string, isFavorite: boolean });
+                        break;
                     default:
                         console.warn('[Bridge] 未知消息类型:', message.type);
                 }
@@ -138,6 +142,10 @@ export function useBridge(callbacks: BridgeCallbacks) {
         postMessage('loadHistoryImages', { paths, screenshotPath });
     }, [postMessage]);
 
+    const toggleFavorite = useCallback((historyId: string) => {
+        postMessage('toggleFavorite', { historyId });
+    }, [postMessage]);
+
     return {
         postMessage,
         listNamedViews,
@@ -149,5 +157,6 @@ export function useBridge(callbacks: BridgeCallbacks) {
         openFolder,
         getHistory,
         loadHistoryImages,
+        toggleFavorite,
     };
 }

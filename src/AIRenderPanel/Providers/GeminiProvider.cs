@@ -25,7 +25,8 @@ namespace AIRenderPanel.Providers
         public bool RequiresApiKey => true;
 
         // API 端点
-        private const string API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
+        private const string GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
+        private const string VERTEX_AI_BASE = "https://aiplatform.googleapis.com/v1/models";
         
         // 模型名称
         private const string MODEL_PRO = "gemini-3-pro-image-preview";    // 专业模式
@@ -36,6 +37,10 @@ namespace AIRenderPanel.Providers
         private string? _aspectRatio;
         private bool _useProMode = true;       // 默认专业模式
         private int _contrastAdjust = -92;     // 对比度调整（仅快速模式），默认 -92%
+        
+        // 端点设置
+        private bool _useGeminiApi = true;
+        private bool _useVertexAI = false;
 
         public GeminiProvider(Func<string?> getApiKey, Func<string?>? getProxyUrl = null)
         {
@@ -125,6 +130,16 @@ namespace AIRenderPanel.Providers
         {
             // 确保在 0 到 -100 范围内
             _contrastAdjust = Math.Clamp(contrastPercent, -100, 0);
+        }
+
+        /// <summary>
+        /// 设置 API 端点选项
+        /// </summary>
+        public void SetApiEndpoints(bool useGeminiApi, bool useVertexAI)
+        {
+            _useGeminiApi = useGeminiApi;
+            _useVertexAI = useVertexAI;
+            RhinoApp.WriteLine($"[AI渲染] API 端点设置: Gemini API={useGeminiApi}, Vertex AI={useVertexAI}");
         }
 
         private string CurrentModel => _useProMode ? MODEL_PRO : MODEL_FLASH;
@@ -262,7 +277,81 @@ namespace AIRenderPanel.Providers
             string apiKey,
             CancellationToken cancellationToken)
         {
-            // 构建 Gemini API 请求体
+            // 构建请求体（两个端点格式相同）
+            var requestBodyJson = BuildRequestBody(prompt, referenceImage);
+            
+            // 尝试的端点列表
+            var endpoints = new List<(string Name, string Url)>();
+            
+            if (_useGeminiApi)
+            {
+                endpoints.Add(("Gemini API", $"{GEMINI_API_BASE}/{CurrentModel}:generateContent?key={apiKey}"));
+            }
+            if (_useVertexAI)
+            {
+                endpoints.Add(("Vertex AI", $"{VERTEX_AI_BASE}/{CurrentModel}:generateContent?key={apiKey}"));
+            }
+            
+            if (endpoints.Count == 0)
+            {
+                throw new InvalidOperationException("请至少启用一个 API 端点（Gemini API 或 Vertex AI）");
+            }
+
+            Exception? lastException = null;
+            
+            foreach (var (endpointName, requestUrl) in endpoints)
+            {
+                try
+                {
+                    RhinoApp.WriteLine($"[AI渲染] 尝试使用 {endpointName} 发送请求...");
+                    
+                    var content = new StringContent(requestBodyJson, Encoding.UTF8, "application/json");
+                    var response = await _httpClient.PostAsync(requestUrl, content, cancellationToken);
+                    var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var errorMsg = ExtractErrorMessage(responseBody);
+                        RhinoApp.WriteLine($"[AI渲染] {endpointName} 错误: {response.StatusCode} - {errorMsg}");
+                        lastException = new HttpRequestException($"{endpointName} 请求失败: {response.StatusCode} - {errorMsg}");
+                        continue; // 尝试下一个端点
+                    }
+
+                    // 解析响应，提取生成的图像
+                    var generatedImage = ParseImageFromResponse(responseBody);
+                    
+                    if (generatedImage == null || generatedImage.Length == 0)
+                    {
+                        RhinoApp.WriteLine($"[AI渲染] {endpointName} 未返回图像，尝试下一个端点...");
+                        lastException = new Exception($"{endpointName} 未返回图像");
+                        continue;
+                    }
+
+                    var requestId = Guid.NewGuid().ToString("N")[..8];
+                    RhinoApp.WriteLine($"[AI渲染] {endpointName} 成功，图像大小: {generatedImage.Length} 字节");
+                    return (generatedImage, requestId);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw; // 取消操作不重试
+                }
+                catch (Exception ex)
+                {
+                    RhinoApp.WriteLine($"[AI渲染] {endpointName} 异常: {ex.Message}");
+                    lastException = ex;
+                    // 继续尝试下一个端点
+                }
+            }
+
+            // 所有端点都失败
+            throw lastException ?? new Exception("所有 API 端点请求失败");
+        }
+
+        /// <summary>
+        /// 构建请求体 JSON
+        /// </summary>
+        private string BuildRequestBody(string prompt, byte[] referenceImage)
+        {
             var parts = new List<object>();
 
             // 添加提示词
@@ -283,7 +372,6 @@ namespace AIRenderPanel.Providers
             
             if (_useProMode)
             {
-                // 专业模式：支持 imageConfig（分辨率、比例）
                 var imageConfig = new Dictionary<string, object>();
                 if (!string.IsNullOrEmpty(_resolution))
                 {
@@ -303,7 +391,6 @@ namespace AIRenderPanel.Providers
             }
             else
             {
-                // 快速模式：简化配置
                 generationConfig = new
                 {
                     responseModalities = new[] { "TEXT", "IMAGE" },
@@ -323,35 +410,7 @@ namespace AIRenderPanel.Providers
                 generationConfig
             };
 
-            var jsonContent = JsonConvert.SerializeObject(requestBody);
-            var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
-
-            var requestUrl = $"{API_BASE}/{CurrentModel}:generateContent?key={apiKey}";
-            
-            RhinoApp.WriteLine($"[AI渲染] 发送请求到 {CurrentModel}...");
-
-            var response = await _httpClient.PostAsync(requestUrl, content, cancellationToken);
-            var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                RhinoApp.WriteLine($"[AI渲染] API 错误响应: {responseBody}");
-                throw new HttpRequestException($"API 请求失败: {response.StatusCode} - {ExtractErrorMessage(responseBody)}");
-            }
-
-            // 解析响应，提取生成的图像
-            var generatedImage = ParseImageFromResponse(responseBody);
-            
-            if (generatedImage == null || generatedImage.Length == 0)
-            {
-                RhinoApp.WriteLine("[AI渲染] 警告：API 未返回图像，将返回原图");
-                return (referenceImage, Guid.NewGuid().ToString("N")[..8]);
-            }
-
-            var requestId = Guid.NewGuid().ToString("N")[..8];
-            RhinoApp.WriteLine($"[AI渲染] 成功获取生成图像，大小: {generatedImage.Length} 字节");
-            
-            return (generatedImage, requestId);
+            return JsonConvert.SerializeObject(requestBody);
         }
 
         /// <summary>
