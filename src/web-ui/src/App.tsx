@@ -35,6 +35,15 @@ const ASPECT_RATIOS = [
     { value: '21:9', label: '21:9' },
 ] as const;
 
+// 截图长边尺寸选项
+const LONG_EDGE_OPTIONS = [
+    { value: 0, label: '视口尺寸', desc: '使用 Rhino 视口实际尺寸' },
+    { value: 1024, label: '1024px', desc: '标准' },
+    { value: 1920, label: '1920px', desc: '全高清' },
+    { value: 2560, label: '2560px', desc: '2K' },
+    { value: 3840, label: '3840px', desc: '4K' },
+] as const;
+
 function App() {
     // 状态
     const [status, setStatus] = useState<AppStatus>('idle');
@@ -50,6 +59,7 @@ function App() {
     const [count, setCount] = useState(1);
     const [mode, setMode] = useState<'pro' | 'flash'>('pro'); // 生成模式
     const [contrastAdjust, setContrastAdjust] = useState(-92); // 对比度调整（快速模式）
+    const [longEdge, setLongEdge] = useState(1920); // 截图长边尺寸
 
     // 数据状态
     const [namedViews, setNamedViews] = useState<string[]>([]);
@@ -162,8 +172,9 @@ function App() {
             aspectRatio: aspectRatio || undefined,
             mode,
             contrastAdjust: mode === 'flash' ? contrastAdjust : undefined,
+            longEdge: longEdge > 0 ? longEdge : undefined,
         } as any);
-    }, [bridge, prompt, source, selectedNamedView, count, resolution, aspectRatio, mode, contrastAdjust]);
+    }, [bridge, prompt, source, selectedNamedView, count, resolution, aspectRatio, mode, contrastAdjust, longEdge]);
 
     // 取消
     const handleCancel = useCallback(() => {
@@ -326,6 +337,23 @@ function App() {
                                         onClick={() => setAspectRatio(ratio.value)}
                                     >
                                         {ratio.label}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* 截图尺寸 */}
+                        <div className="control-group">
+                            <label className="label">截图尺寸（长边）</label>
+                            <div className="chip-group">
+                                {LONG_EDGE_OPTIONS.map((opt) => (
+                                    <div
+                                        key={opt.value}
+                                        className={`chip ${longEdge === opt.value ? 'active' : ''}`}
+                                        onClick={() => setLongEdge(opt.value)}
+                                        title={opt.desc}
+                                    >
+                                        {opt.label}
                                     </div>
                                 ))}
                             </div>

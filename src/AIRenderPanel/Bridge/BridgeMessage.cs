@@ -88,6 +88,20 @@ namespace AIRenderPanel.Bridge
         /// </summary>
         [JsonProperty("contrastAdjust")]
         public int ContrastAdjust { get; set; } = -92;
+
+        /// <summary>
+        /// 截图长边尺寸（像素）
+        /// 与 AspectRatio 配合使用，短边自动计算
+        /// 如果为 0 或不传，则使用 Width/Height
+        /// </summary>
+        [JsonProperty("longEdge")]
+        public int LongEdge { get; set; } = 0;
+
+        /// <summary>
+        /// 截图尺寸来源：viewport（使用视口尺寸）| custom（使用自定义尺寸）
+        /// </summary>
+        [JsonProperty("captureMode")]
+        public string CaptureMode { get; set; } = "custom";
     }
 
     /// <summary>

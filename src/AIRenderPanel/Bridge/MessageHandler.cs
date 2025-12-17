@@ -160,22 +160,49 @@ namespace AIRenderPanel.Bridge
 
                 // 截图
                 byte[] imageBytes;
-                if (request.Source == "named" && !string.IsNullOrEmpty(request.NamedView))
+                
+                // 根据 captureMode 决定如何获取截图尺寸
+                if (request.LongEdge > 0)
                 {
-                    imageBytes = _captureService.CaptureNamedView(
-                        request.NamedView, 
-                        request.Width, 
-                        request.Height, 
-                        false
-                    );
+                    // 使用长边 + 比例计算尺寸
+                    if (request.Source == "named" && !string.IsNullOrEmpty(request.NamedView))
+                    {
+                        imageBytes = _captureService.CaptureNamedViewWithAspect(
+                            request.NamedView,
+                            request.AspectRatio,
+                            request.LongEdge,
+                            false
+                        );
+                    }
+                    else
+                    {
+                        imageBytes = _captureService.CaptureActiveViewportWithAspect(
+                            request.AspectRatio,
+                            request.LongEdge,
+                            false
+                        );
+                    }
                 }
                 else
                 {
-                    imageBytes = _captureService.CaptureActiveViewport(
-                        request.Width, 
-                        request.Height, 
-                        false
-                    );
+                    // 使用传入的固定宽高
+                    if (request.Source == "named" && !string.IsNullOrEmpty(request.NamedView))
+                    {
+                        imageBytes = _captureService.CaptureNamedView(
+                            request.NamedView, 
+                            request.Width, 
+                            request.Height, 
+                            false
+                        );
+                    }
+                    else
+                    {
+                        imageBytes = _captureService.CaptureActiveViewport(
+                            request.Width, 
+                            request.Height, 
+                            false
+                        );
+                    }
                 }
 
                 token.ThrowIfCancellationRequested();
