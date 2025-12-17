@@ -90,9 +90,30 @@ AIRenderPanel
 
 ## 构建生产版本
 
+### 一键构建（推荐）
+
+```powershell
+# 构建 Debug 版本
+./build.ps1
+
+# 构建 Release 版本
+./build.ps1 -Release
+
+# 清理构建产物
+./build.ps1 -Clean
+
+# 仅构建后端（跳过前端）
+./build.ps1 -SkipFrontend
+```
+
+构建完成后，所有文件会输出到 `dist/` 目录。
+
+### 手动构建
+
 ```bash
 # 前端
 cd src/web-ui
+npm install
 npm run build
 
 # C# 插件
