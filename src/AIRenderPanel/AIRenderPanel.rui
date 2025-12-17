@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RhinoUI major_ver="2" minor_ver="0">
+  <extend_rhino_menus/>
+  <menus/>
+  <tool_bar_groups/>
+  <tool_bars>
+    <tool_bar guid="a1b2c3d4-e5f6-7890-abcd-ef1234567891" name="AI Render" item_display_style="control">
+      <tool_bar_item guid="a1b2c3d4-e5f6-7890-abcd-ef1234567892" button_display_mode="control">
+        <left_macro_id>a1b2c3d4-e5f6-7890-abcd-ef1234567893</left_macro_id>
+        <right_macro_id>00000000-0000-0000-0000-000000000000</right_macro_id>
+      </tool_bar_item>
+    </tool_bar>
+  </tool_bars>
+  <macros>
+    <macro_item guid="a1b2c3d4-e5f6-7890-abcd-ef1234567893">
+      <text>
+        <locale_1033>AI Render</locale_1033>
+      </text>
+      <tooltip>
+        <locale_1033>AI 渲染 - 打开 AI 渲染窗口</locale_1033>
+      </tooltip>
+      <help_text>
+        <locale_1033>使用 Gemini AI 将 Rhino 视口渲染为效果图</locale_1033>
+      </help_text>
+      <button_text>
+        <locale_1033>AI Render</locale_1033>
+      </button_text>
+      <menu_text>
+        <locale_1033>AI 渲染面板</locale_1033>
+      </menu_text>
+      <script>_AIRenderPanel</script>
+    </macro_item>
+  </macros>
+  <bitmap_items>
+    <small_bitmap item_width="24" item_height="24">
+      <bitmap_item guid="a1b2c3d4-e5f6-7890-abcd-ef1234567894" index="0" width="24" height="24">
+        <checksum>0</checksum>
+      </bitmap_item>
+    </small_bitmap>
+    <normal_bitmap item_width="32" item_height="32">
+      <bitmap_item guid="a1b2c3d4-e5f6-7890-abcd-ef1234567894" index="0" width="32" height="32">
+        <checksum>0</checksum>
+      </bitmap_item>
+    </normal_bitmap>
+    <large_bitmap item_width="48" item_height="48">
+      <bitmap_item guid="a1b2c3d4-e5f6-7890-abcd-ef1234567894" index="0" width="48" height="48">
+        <checksum>0</checksum>
+      </bitmap_item>
+    </large_bitmap>
+  </bitmap_items>
+</RhinoUI>

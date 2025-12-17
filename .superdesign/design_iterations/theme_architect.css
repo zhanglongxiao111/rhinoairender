@@ -1,0 +1,111 @@
+:root {
+  /* 
+   * SWISS INTERNATIONAL STYLE - ARCHITECT THEME
+   * Base: Monochrome (Black/White/Gray)
+   * Accent: International Orange (Used sparingly)
+   */
+
+  /* DARK MODE (DEFAULT) */
+  --background: #0a0a0a;       /* Near Black */
+  --foreground: #ffffff;       /* Pure White */
+  
+  --card: #171717;             /* Dark Gray Surface */
+  --card-foreground: #ffffff;
+  
+  --popover: #171717;
+  --popover-foreground: #ffffff;
+  
+  --primary: #ffffff;          /* Primary action is White on Black */
+  --primary-foreground: #000000;
+  
+  --secondary: #262626;        /* Subtle Gray for secondary elements */
+  --secondary-foreground: #ffffff;
+  
+  --muted: #262626;
+  --muted-foreground: #a3a3a3; /* Neutral Gray Text */
+  
+  --accent: #ea580c;           /* International Orange - The "Architect" Touch */
+  --accent-foreground: #ffffff;
+  
+  --destructive: #7f1d1d;
+  --destructive-foreground: #ffffff;
+  
+  --border: #262626;           /* Subtle borders */
+  --input: #262626;
+  --ring: #ffffff;             /* Focus ring is white */
+  
+  --radius: 0px;               /* NO ROUNDED CORNERS - Brutalist/Swiss */
+  
+  /* Chart colors for any data viz */
+  --chart-1: #ffffff;
+  --chart-2: #a3a3a3;
+  --chart-3: #525252;
+  --chart-4: #ea580c;
+  --chart-5: #262626;
+
+  /* Sidebar specific */
+  --sidebar: #0a0a0a;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #ffffff;
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent: #262626;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #262626;
+  --sidebar-ring: #ffffff;
+
+  /* Typography - Inter / Helvetica style */
+  --font-sans: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-serif: 'Times New Roman', serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Spacing & Shadows */
+  --spacing: 0.25rem;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -1px rgb(0 0 0 / 0.1);
+  
+  /* Custom Architect Variables */
+  --grid-color: #262626;
+}
+
+/* LIGHT MODE OVERRIDES */
+.light {
+  --background: #ffffff;
+  --foreground: #000000;
+  
+  --card: #f5f5f5;             /* Light Gray Surface */
+  --card-foreground: #000000;
+  
+  --popover: #ffffff;
+  --popover-foreground: #000000;
+  
+  --primary: #000000;          /* Primary action is Black on White */
+  --primary-foreground: #ffffff;
+  
+  --secondary: #e5e5e5;
+  --secondary-foreground: #000000;
+  
+  --muted: #f5f5f5;
+  --muted-foreground: #525252;
+  
+  --accent: #ea580c;           /* Keep the orange accent */
+  --accent-foreground: #ffffff;
+  
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+  --ring: #000000;
+  
+  --sidebar: #ffffff;
+  --sidebar-foreground: #000000;
+  --sidebar-primary: #000000;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f5f5f5;
+  --sidebar-accent-foreground: #000000;
+  --sidebar-border: #e5e5e5;
+  --sidebar-ring: #000000;
+  
+  --grid-color: #e5e5e5;
+}

@@ -133,6 +133,13 @@ foreach ($dll in $Dependencies) {
     }
 }
 
+# 复制 RUI 工具栏文件（与 RHP 同名自动加载）
+$RuiFile = Join-Path $PluginDir "AIRenderPanel.rui"
+if (Test-Path $RuiFile) {
+    Copy-Item $RuiFile $DistDir -Force
+    Write-Host "  AIRenderPanel.rui (工具栏)"
+}
+
 Write-Host ""
 Write-Host "================================" -ForegroundColor Cyan
 Write-Host " 构建完成!" -ForegroundColor Green
