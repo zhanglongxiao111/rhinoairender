@@ -71,6 +71,7 @@ function App() {
     // UI 状态
     const [showSettings, setShowSettings] = useState(false);
     const [lightboxImage, setLightboxImage] = useState<string | null>(null); // Lightbox 放大图片
+    const [comparePosition, setComparePosition] = useState(50); // AB 对比滑块位置 (0-100)
     const [settings, setSettings] = useState<SettingsData>({
         outputMode: 'auto',
         outputFolder: '',
@@ -627,12 +628,59 @@ function App() {
             {/* 错误提示 */}
             {error && <div className="toast">{error}</div>}
 
-            {/* 图片放大 Lightbox */}
+            {/* 图片 AB 对比 Lightbox */}
             {lightboxImage && (
                 <div className="lightbox" onClick={() => setLightboxImage(null)}>
-                    <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
-                        <img src={lightboxImage} alt="放大查看" />
+                    <div className="lightbox-compare" onClick={(e) => e.stopPropagation()}>
+                        <div className="compare-container">
+                            {/* 原始截图 - 左侧 */}
+                            <div
+                                className="compare-left"
+                                style={{ width: `${comparePosition}%` }}
+                            >
+                                {previewImage && (
+                                    <img src={previewImage} alt="原始截图" />
+                                )}
+                                <div className="compare-label compare-label-left">原始截图</div>
+                            </div>
+
+                            {/* AI 生成图 - 右侧（底层） */}
+                            <div className="compare-right">
+                                <img src={lightboxImage} alt="AI 渲染" />
+                                <div className="compare-label compare-label-right">AI 渲染</div>
+                            </div>
+
+                            {/* 分割线 */}
+                            <div
+                                className="compare-slider"
+                                style={{ left: `${comparePosition}%` }}
+                                onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    const container = e.currentTarget.parentElement;
+                                    if (!container) return;
+
+                                    const handleMove = (moveEvent: MouseEvent) => {
+                                        const rect = container.getBoundingClientRect();
+                                        const x = moveEvent.clientX - rect.left;
+                                        const percent = Math.max(0, Math.min(100, (x / rect.width) * 100));
+                                        setComparePosition(percent);
+                                    };
+
+                                    const handleUp = () => {
+                                        document.removeEventListener('mousemove', handleMove);
+                                        document.removeEventListener('mouseup', handleUp);
+                                    };
+
+                                    document.addEventListener('mousemove', handleMove);
+                                    document.addEventListener('mouseup', handleUp);
+                                }}
+                            >
+                                <div className="compare-slider-handle">◀ ▶</div>
+                            </div>
+                        </div>
+
                         <button className="lightbox-close" onClick={() => setLightboxImage(null)}>×</button>
+                        <div className="compare-hint">← 拖动分割线对比 →</div>
                     </div>
                 </div>
             )}
