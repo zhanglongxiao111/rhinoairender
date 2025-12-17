@@ -70,6 +70,7 @@ function App() {
 
     // UI 状态
     const [showSettings, setShowSettings] = useState(false);
+    const [lightboxImage, setLightboxImage] = useState<string | null>(null); // Lightbox 放大图片
     const [settings, setSettings] = useState<SettingsData>({
         outputMode: 'auto',
         outputFolder: '',
@@ -135,18 +136,20 @@ function App() {
         return () => clearTimeout(timer);
     }, []);
 
-    // 截图预览
+    // 截图预览 - 使用 longEdge 和 aspectRatio
     const handleCapturePreview = useCallback(() => {
         setStatus('capturing');
         setStatusMessage('正在截图...');
         bridge.capturePreview({
             source,
             namedView: source === 'named' ? selectedNamedView : undefined,
-            width: 1024,
-            height: 1024,
+            width: 1024, // 备用
+            height: 1024, // 备用
             transparent: false,
-        });
-    }, [bridge, source, selectedNamedView]);
+            longEdge: longEdge > 0 ? longEdge : undefined,
+            aspectRatio: aspectRatio || undefined,
+        } as any);
+    }, [bridge, source, selectedNamedView, longEdge, aspectRatio]);
 
     // 生成 - 支持并发
     const handleGenerate = useCallback(() => {
@@ -251,7 +254,16 @@ function App() {
                         {/* 命名视图选择 */}
                         {source === 'named' && (
                             <div className="control-group">
-                                <label className="label">选择视图</label>
+                                <label className="label">
+                                    选择视图
+                                    <button
+                                        className="btn-refresh"
+                                        onClick={() => bridge.listNamedViews()}
+                                        title="刷新命名视图列表"
+                                    >
+                                        ↻
+                                    </button>
+                                </label>
                                 {namedViews.length > 0 ? (
                                     <select
                                         className="select"
@@ -447,10 +459,8 @@ function App() {
                                     <div
                                         key={index}
                                         className="preview-grid-item"
-                                        onClick={() => {
-                                            // 点击放大查看
-                                            setGeneratedImages([img, ...generatedImages.filter((_, i) => i !== index)]);
-                                        }}
+                                        onClick={() => setLightboxImage(img)}
+                                        title="点击放大查看"
                                     >
                                         <img src={img} alt={`结果 ${index + 1}`} />
                                         <div className="preview-grid-index">{index + 1}</div>
@@ -616,6 +626,16 @@ function App() {
 
             {/* 错误提示 */}
             {error && <div className="toast">{error}</div>}
+
+            {/* 图片放大 Lightbox */}
+            {lightboxImage && (
+                <div className="lightbox" onClick={() => setLightboxImage(null)}>
+                    <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
+                        <img src={lightboxImage} alt="放大查看" />
+                        <button className="lightbox-close" onClick={() => setLightboxImage(null)}>×</button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

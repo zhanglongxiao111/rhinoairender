@@ -35,6 +35,12 @@ namespace AIRenderPanel.Bridge
 
         [JsonProperty("transparent")]
         public bool Transparent { get; set; } = false;
+
+        [JsonProperty("longEdge")]
+        public int LongEdge { get; set; } = 0;
+
+        [JsonProperty("aspectRatio")]
+        public string? AspectRatio { get; set; }
     }
 
     /// <summary>

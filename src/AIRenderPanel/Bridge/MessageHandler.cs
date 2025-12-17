@@ -105,30 +105,65 @@ namespace AIRenderPanel.Bridge
             try
             {
                 byte[] imageBytes;
-                if (request.Source == "named" && !string.IsNullOrEmpty(request.NamedView))
+                int width, height;
+
+                // 根据 longEdge 决定如何获取截图尺寸
+                if (request.LongEdge > 0)
                 {
-                    imageBytes = _captureService.CaptureNamedView(
-                        request.NamedView, 
-                        request.Width, 
-                        request.Height, 
-                        request.Transparent
-                    );
+                    // 使用长边 + 比例计算尺寸
+                    var (w, h) = _captureService.CalculateSize(request.AspectRatio, request.LongEdge);
+                    width = w;
+                    height = h;
+                    
+                    if (request.Source == "named" && !string.IsNullOrEmpty(request.NamedView))
+                    {
+                        imageBytes = _captureService.CaptureNamedViewWithAspect(
+                            request.NamedView,
+                            request.AspectRatio,
+                            request.LongEdge,
+                            request.Transparent
+                        );
+                    }
+                    else
+                    {
+                        imageBytes = _captureService.CaptureActiveViewportWithAspect(
+                            request.AspectRatio,
+                            request.LongEdge,
+                            request.Transparent
+                        );
+                    }
                 }
                 else
                 {
-                    imageBytes = _captureService.CaptureActiveViewport(
-                        request.Width, 
-                        request.Height, 
-                        request.Transparent
-                    );
+                    // 使用传入的固定宽高
+                    width = request.Width;
+                    height = request.Height;
+                    
+                    if (request.Source == "named" && !string.IsNullOrEmpty(request.NamedView))
+                    {
+                        imageBytes = _captureService.CaptureNamedView(
+                            request.NamedView, 
+                            request.Width, 
+                            request.Height, 
+                            request.Transparent
+                        );
+                    }
+                    else
+                    {
+                        imageBytes = _captureService.CaptureActiveViewport(
+                            request.Width, 
+                            request.Height, 
+                            request.Transparent
+                        );
+                    }
                 }
 
                 var base64 = Convert.ToBase64String(imageBytes);
                 _sendMessage("previewImage", new PreviewImageResponse
                 {
                     Base64 = base64,
-                    Width = request.Width,
-                    Height = request.Height
+                    Width = width,
+                    Height = height
                 });
             }
             catch (Exception ex)
