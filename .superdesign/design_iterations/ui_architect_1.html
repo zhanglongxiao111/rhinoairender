@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SA&DAGA Architects - AI Render</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        border: "var(--border)",
+                        input: "var(--input)",
+                        ring: "var(--ring)",
+                        background: "var(--background)",
+                        foreground: "var(--foreground)",
+                        primary: {
+                            DEFAULT: "var(--primary)",
+                            foreground: "var(--primary-foreground)",
+                        },
+                        secondary: {
+                            DEFAULT: "var(--secondary)",
+                            foreground: "var(--secondary-foreground)",
+                        },
+                        destructive: {
+                            DEFAULT: "var(--destructive)",
+                            foreground: "var(--destructive-foreground)",
+                        },
+                        muted: {
+                            DEFAULT: "var(--muted)",
+                            foreground: "var(--muted-foreground)",
+                        },
+                        accent: {
+                            DEFAULT: "var(--accent)",
+                            foreground: "var(--accent-foreground)",
+                        },
+                        popover: {
+                            DEFAULT: "var(--popover)",
+                            foreground: "var(--popover-foreground)",
+                        },
+                        card: {
+                            DEFAULT: "var(--card)",
+                            foreground: "var(--card-foreground)",
+                        },
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    borderRadius: {
+                        lg: "var(--radius)",
+                        md: "calc(var(--radius) - 2px)",
+                        sm: "calc(var(--radius) - 4px)",
+                    },
+                }
+            }
+        }
+    </script>
+
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+    <!-- Theme CSS -->
+    <link rel="stylesheet" href="theme_architect.css">
+
+    <style>
+        /* Custom Architect Styles */
+        body {
+            font-feature-settings: "ss01", "ss02", "cv01", "cv02";
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Custom Scrollbar - Minimalist */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--muted-foreground);
+        }
+
+        /* Grid Lines Utility */
+        .grid-line-b {
+            border-bottom: 1px solid var(--border);
+        }
+        .grid-line-r {
+            border-right: 1px solid var(--border);
+        }
+        .grid-line-t {
+            border-top: 1px solid var(--border);
+        }
+        .grid-line-l {
+            border-left: 1px solid var(--border);
+        }
+
+        /* Input Reset */
+        .architect-input {
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid transparent;
+            transition: border-color 0.2s ease;
+            border-radius: 0;
+        }
+        .architect-input:focus {
+            outline: none;
+            border-bottom: 1px solid var(--accent);
+            box-shadow: none;
+        }
+
+        /* Select Customization */
+        select.architect-select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+        }
+
+        /* Animations */
+        .fade-in-up {
+            animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .hover-underline-animation {
+            display: inline-block;
+            position: relative;
+        }
+
+        .hover-underline-animation::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            transform: scaleX(0);
+            height: 1px;
+            bottom: 0;
+            left: 0;
+            background-color: var(--foreground);
+            transform-origin: bottom right;
+            transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .hover-underline-animation:hover::after {
+            transform: scaleX(1);
+            transform-origin: bottom left;
+        }
+
+        /* Image Loader Scanline */
+        .scanline {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--accent);
+            box-shadow: 0 0 10px var(--accent);
+            animation: scan 2s linear infinite;
+            z-index: 10;
+            display: none;
+        }
+        .loading .scanline {
+            display: block;
+        }
+
+        @keyframes scan {
+            0% { top: 0%; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+        
+        /* Range Slider Minimalist */
+        input[type=range] {
+            -webkit-appearance: none; 
+            background: transparent; 
+        }
+        
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 12px;
+            width: 12px;
+            background: var(--foreground);
+            cursor: pointer;
+            margin-top: -5px; 
+        }
+        
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 2px;
+            cursor: pointer;
+            background: var(--border);
+        }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden bg-background text-foreground flex font-sans selection:bg-accent selection:text-accent-foreground">
+
+    <!-- LEFT PANEL: CONTROLS (Fixed Width) -->
+    <aside class="w-[360px] flex flex-col h-full grid-line-r bg-background z-20 flex-shrink-0">
+        
+        <!-- 1. HEADER -->
+        <header class="p-6 grid-line-b flex justify-between items-start">
+            <div>
+                <h1 class="text-2xl font-black tracking-tight leading-none mb-1">SA&DAGA<br>ARCHITECTS</h1>
+                <div class="flex items-center gap-2 text-[10px] font-mono tracking-widest text-muted-foreground uppercase">
+                    <span>AI 渲染面板</span>
+                    <span class="w-1 h-1 bg-accent rounded-full"></span>
+                    <span>v2.0</span>
+                </div>
+            </div>
+            <button id="theme-toggle" class="p-2 hover:bg-secondary transition-colors" aria-label="Toggle Theme">
+                <i data-lucide="sun" class="w-4 h-4 hidden dark:block"></i>
+                <i data-lucide="moon" class="w-4 h-4 block dark:hidden"></i>
+            </button>
+        </header>
+
+        <!-- 2. SCROLLABLE CONTROLS -->
+        <div class="flex-1 overflow-y-auto">
+            
+            <!-- PROMPT SECTION -->
+            <div class="p-6 grid-line-b">
+                <label class="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-3 block">提示词输入</label>
+                <textarea 
+                    class="w-full bg-secondary/30 p-3 text-sm min-h-[120px] resize-none focus:outline-none focus:ring-1 focus:ring-accent transition-all placeholder:text-muted-foreground/50 font-normal leading-relaxed"
+                    placeholder="描述建筑场景... 例如：雪地森林中的现代混凝土博物馆，柔和的阴天光线，8k分辨率。"
+                ></textarea>
+            </div>
+
+            <!-- PARAMETERS GRID -->
+            <div class="grid grid-cols-2">
+                <!-- Mode -->
+                <div class="p-4 grid-line-b grid-line-r">
+                    模式
+                    <select class="architect-select w-full bg-transparent text-sm font-medium focus:outline-none cursor-pointer">
+                        专业模式
+                        极速模式 (Flash)
+                    </select>
+                </div>
+                <!-- Resolution -->
+                <div class="p-4 grid-line-b">
+                    分辨率
+                    <select class="architect-select w-full bg-transparent text-sm font-medium focus:outline-none cursor-pointer">
+                        <option>2K (QHD)</option>
+                        <option>4K (UHD)</option>
+                        <option>1K (HD)</option>
+                    </select>
+                </div>
+                <!-- Aspect Ratio -->
+                <div class="p-4 grid-line-b grid-line-r">
+                    比例
+                    <select class="architect-select w-full bg-transparent text-sm font-medium focus:outline-none cursor-pointer">
+                        <option>16:9</option>
+                        <option>4:3</option>
+                        <option>1:1</option>
+                        <option>9:16</option>
+                    </select>
+                </div>
+                <!-- Count -->
+                <div class="p-4 grid-line-b">
+                    数量
+                    <select class="architect-select w-full bg-transparent text-sm font-medium focus:outline-none cursor-pointer">
+                        1 张
+                        2 张
+                        4 张
+                    </select>
+                </div>
+            </div>
+
+            <!-- ADVANCED / VIEW SOURCE -->
+            <div class="p-6 grid-line-b">
+                <div class="mb-4">
+                    <label class="text-[10px] font-mono uppercase text-muted-foreground block mb-2">视图来源</label>
+                    <div class="flex gap-2">
+                        <button class="flex-1 py-2 px-3 text-xs border border-foreground bg-foreground text-background font-medium">当前视图</button>
+                        <button class="flex-1 py-2 px-3 text-xs border border-border hover:border-foreground transition-colors">命名视图</button>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="text-[10px] font-mono uppercase text-muted-foreground block mb-2 flex justify-between">
+                        <span>创意度</span>
+                        <span class="text-foreground">85%</span>
+                    </label>
+                    <input type="range" min="0" max="100" value="85" class="w-full">
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 3. ACTION FOOTER -->
+        <div class="p-6 bg-background grid-line-t">
+            <button id="generate-btn" class="group w-full bg-foreground text-background h-14 flex items-center justify-between px-6 hover:bg-accent hover:text-white transition-all duration-300 btn-press">
+                <span class="font-bold tracking-wide">开始渲染</span>
+                <i data-lucide="arrow-right" class="w-5 h-5 group-hover:translate-x-1 transition-transform"></i>
+            </button>
+            <div class="flex justify-between mt-3 text-[10px] font-mono text-muted-foreground">
+                <span>预计时间: 12s</span>
+                <span>消耗: 0.02 点数</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- RIGHT PANEL: GALLERY / WORKSPACE -->
+    <main class="flex-1 flex flex-col h-full relative bg-secondary/10">
+        
+        <!-- TOP BAR -->
+        <div class="h-14 grid-line-b flex items-center justify-between px-6 bg-background">
+            <div class="flex items-center gap-4">
+                <span class="text-xs font-mono text-muted-foreground">项目: <span class="text-foreground">VILLA_01.3DM</span></span>
+                <span class="h-3 w-[1px] bg-border"></span>
+                <span class="text-xs font-mono text-muted-foreground">视图 <span class="text-foreground">PERSPECTIVE</span></span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button class="p-2 hover:bg-secondary transition-colors" title="Grid View">
+                    <i data-lucide="layout-grid" class="w-4 h-4"></i>
+                </button>
+                <button class="p-2 hover:bg-secondary transition-colors text-foreground" title="Single View">
+                    <i data-lucide="square" class="w-4 h-4"></i>
+                </button>
+                <span class="h-3 w-[1px] bg-border mx-1"></span>
+                <button class="p-2 hover:bg-secondary transition-colors" title="Download">
+                    <i data-lucide="download" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- MAIN CANVAS -->
+        <div class="flex-1 relative flex items-center justify-center p-8 overflow-hidden group" id="canvas-area">
+            
+            <!-- Loading Overlay (Hidden by default) -->
+            <div id="loader" class="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 hidden flex-col items-center justify-center">
+                <div class="w-64 h-1 bg-border relative overflow-hidden">
+                    <div class="absolute inset-0 bg-foreground animate-[shimmer_1.5s_infinite]"></div>
+                </div>
+                <p class="mt-4 font-mono text-xs animate-pulse">正在处理几何体...</p>
+            </div>
+
+            <!-- Image Container -->
+            <div class="relative shadow-2xl max-w-full max-h-full fade-in-up">
+                <div class="scanline"></div> <!-- Scanline effect -->
+                <img src="https://images.unsplash.com/photo-1600607686527-6fb886090705?q=80&w=2400&auto=format&fit=crop" 
+                     alt="Render Result" 
+                     class="max-w-full max-h-[calc(100vh-180px)] object-contain border border-border"
+                >
+                
+                <!-- Hover Info Overlay -->
+                <div class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <div class="flex justify-between items-end">
+                        <div>
+                            <p class="font-mono text-xs opacity-70">SEED: 29384710</p>
+                            <p class="font-medium">Modern Concrete Villa, Forest Context</p>
+                        </div>
+                        <button class="p-2 bg-white text-black hover:bg-accent hover:text-white transition-colors">
+                            <i data-lucide="maximize-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- BOTTOM HISTORY STRIP (Collapsible) -->
+        <div class="h-32 bg-background grid-line-t flex flex-col">
+            <div class="flex items-center justify-between px-4 py-2 border-b border-border/50">
+                <span class="text-[10px] font-mono uppercase text-muted-foreground">历史记录 / 会话</span>
+                <button class="text-[10px] hover:text-foreground text-muted-foreground transition-colors">清空全部</button>
+            </div>
+            <div class="flex-1 overflow-x-auto flex items-center gap-3 px-4 py-2">
+                <!-- History Item 1 (Active) -->
+                <div class="relative h-20 aspect-video border-2 border-accent cursor-pointer group">
+                    <img src="https://images.unsplash.com/photo-1600607686527-6fb886090705?q=80&w=400&auto=format&fit=crop" class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all">
+                    <div class="absolute top-1 right-1 w-2 h-2 bg-accent rounded-full"></div>
+                </div>
+                <!-- History Item 2 -->
+                <div class="relative h-20 aspect-video border border-border cursor-pointer group hover:border-foreground transition-colors">
+                    <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=400&auto=format&fit=crop" class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all">
+                </div>
+                <!-- History Item 3 -->
+                <div class="relative h-20 aspect-video border border-border cursor-pointer group hover:border-foreground transition-colors">
+                    <img src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=400&auto=format&fit=crop" class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all">
+                </div>
+                <!-- History Item 4 -->
+                <div class="relative h-20 aspect-video border border-border cursor-pointer group hover:border-foreground transition-colors">
+                    <img src="https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?q=80&w=400&auto=format&fit=crop" class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all">
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        // Theme Toggle Logic
+        const themeToggle = document.getElementById('theme-toggle');
+        const html = document.documentElement;
+        
+        themeToggle.addEventListener('click', () => {
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                html.classList.add('light');
+            } else {
+                html.classList.remove('light');
+                html.classList.add('dark');
+            }
+        });
+
+        // Generate Button Animation Simulation
+        const generateBtn = document.getElementById('generate-btn');
+        const loader = document.getElementById('loader');
+        const canvasArea = document.getElementById('canvas-area');
+
+        generateBtn.addEventListener('click', () => {
+            // Show Loader
+            loader.classList.remove('hidden');
+            loader.classList.add('flex');
+            
+            // Simulate Processing
+            setTimeout(() => {
+                loader.classList.add('hidden');
+                loader.classList.remove('flex');
+                
+                // Re-trigger fade in animation for the image
+                const imgContainer = canvasArea.querySelector('.fade-in-up');
+                imgContainer.style.animation = 'none';
+                imgContainer.offsetHeight; /* trigger reflow */
+                imgContainer.style.animation = null; 
+                
+            }, 2000);
+        });
+    </script>
+</body>
+</html>

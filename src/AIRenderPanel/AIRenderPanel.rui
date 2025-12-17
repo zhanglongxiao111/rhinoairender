@@ -1,51 +1,69 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RhinoUI major_ver="2" minor_ver="0">
-  <extend_rhino_menus/>
-  <menus/>
-  <tool_bar_groups/>
+<RhinoUI major_ver="3" minor_ver="0" guid="a1b2c3d4-e5f6-7890-abcd-ef1234567890" localize="False" default_language_id="1033" dpi_scale="100">
+  <tool_bar_groups>
+    <tool_bar_group guid="a1b2c3d4-e5f6-7890-abcd-ef1234567001" dock_bar_guid32="00000000-0000-0000-0000-000000000000" dock_bar_guid64="a1b2c3d4-e5f6-7890-abcd-ef1234567002" active_tool_bar_group="a1b2c3d4-e5f6-7890-abcd-ef1234567003" single_file="False" hide_single_tab="False" point_floating="100,100">
+      <text>
+        <locale_1033>AI Render</locale_1033>
+        <locale_2052>AI 渲染</locale_2052>
+      </text>
+      <tool_bar_group_item guid="a1b2c3d4-e5f6-7890-abcd-ef1234567003" major_version="1" minor_version="0">
+        <text>
+          <locale_1033>AI Render</locale_1033>
+          <locale_2052>AI 渲染</locale_2052>
+        </text>
+        <tool_bar_id>a1b2c3d4-e5f6-7890-abcd-ef1234567010</tool_bar_id>
+      </tool_bar_group_item>
+      <dock_bar_info dpi_scale="100" dock_bar="False" docking="True" horz="True" visible="True" floating="True" mru_float_style="8192" bar_id="59500" mru_width="100" point_pos="-2,-2" float_point="100,100" rect_mru_dock_pos="0,0,0,0" dock_location_u="59500" dock_location="top" float_size="48,48" />
+    </tool_bar_group>
+  </tool_bar_groups>
   <tool_bars>
-    <tool_bar guid="a1b2c3d4-e5f6-7890-abcd-ef1234567891" name="AI Render" item_display_style="control">
-      <tool_bar_item guid="a1b2c3d4-e5f6-7890-abcd-ef1234567892" button_display_mode="control">
-        <left_macro_id>a1b2c3d4-e5f6-7890-abcd-ef1234567893</left_macro_id>
-        <right_macro_id>00000000-0000-0000-0000-000000000000</right_macro_id>
+    <tool_bar guid="a1b2c3d4-e5f6-7890-abcd-ef1234567010">
+      <text>
+        <locale_1033>AI Render</locale_1033>
+        <locale_2052>AI 渲染</locale_2052>
+      </text>
+      <tool_bar_item guid="a1b2c3d4-e5f6-7890-abcd-ef1234567011">
+        <left_macro_id>a1b2c3d4-e5f6-7890-abcd-ef1234567020</left_macro_id>
       </tool_bar_item>
     </tool_bar>
   </tool_bars>
   <macros>
-    <macro_item guid="a1b2c3d4-e5f6-7890-abcd-ef1234567893">
+    <macro_item guid="a1b2c3d4-e5f6-7890-abcd-ef1234567020" bitmap_id="a1b2c3d4-e5f6-7890-abcd-ef1234567030">
       <text>
         <locale_1033>AI Render</locale_1033>
+        <locale_2052>AI 渲染</locale_2052>
       </text>
       <tooltip>
-        <locale_1033>AI 渲染 - 打开 AI 渲染窗口</locale_1033>
+        <locale_1033>Open AI Render Panel - SA&amp;DAGA Architects</locale_1033>
+        <locale_2052>打开 AI 渲染面板 - SA&amp;DAGA Architects</locale_2052>
       </tooltip>
       <help_text>
-        <locale_1033>使用 Gemini AI 将 Rhino 视口渲染为效果图</locale_1033>
+        <locale_1033>Use Gemini AI to render Rhino viewport into stylized images</locale_1033>
+        <locale_2052>使用 Gemini AI 将 Rhino 视口渲染为风格化效果图</locale_2052>
       </help_text>
       <button_text>
         <locale_1033>AI Render</locale_1033>
+        <locale_2052>AI 渲染</locale_2052>
       </button_text>
       <menu_text>
-        <locale_1033>AI 渲染面板</locale_1033>
+        <locale_1033>AI Render Panel</locale_1033>
+        <locale_2052>AI 渲染面板</locale_2052>
       </menu_text>
       <script>_AIRenderPanel</script>
     </macro_item>
   </macros>
-  <bitmap_items>
-    <small_bitmap item_width="24" item_height="24">
-      <bitmap_item guid="a1b2c3d4-e5f6-7890-abcd-ef1234567894" index="0" width="24" height="24">
-        <checksum>0</checksum>
-      </bitmap_item>
+  <bitmaps>
+    <small_bitmap item_width="16" item_height="16">
+      <bitmap_item guid="a1b2c3d4-e5f6-7890-abcd-ef1234567030" index="0" />
+      <bitmap>iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAJzSURBVDhPjZPLTxNRGMWnU+lj5j7m1el0Oi0NPiAFmtRYRCQgFDBBKWIxRY1uFA1gqaCEDRI0wQQxQKIbF0aX7kx040r/IP+IY+5MQUuicXHyfTPnfL87906upHJ1hHK6RSndUoWa/V/Fg1zQ8y2JMbar6Rq4xkE5C8RaxY5VkWEah5iTBMkfphSWqSPl2C1ykjacY+9MUwdh1F/UBwiiaWjIZtLwPM9XJuMh67nIZV1kvDTc9G9P5AxT87/kCJC0TbiuC8dx4LoOOjvSuDtVxNKtAdwYL6C3qx1cN+GkhO/6+QAgDo0z2JaBZDIJ207ASyVwf+Ys3m1M4v3zCh5Wz6Fe68PV4W5wPcglLKMVIPZvWSbshIneUynsro5hpzGKj5uTePFgEK/qI9i4N4T+Qg6M67COttAEGLoG3dBh6hxz43lsLw5he2EQn19ewdfXM1i/cx77qxOojnSCUJHnYIcA0WgaAxcgjaJWPoPHtSIO6v34+WMF3/ar2GuMYu12H3YeXUIubUElxP+tRwDOKRRCkEpwLFTyWL7eg736RXw/mMaXnWk8uVnCWq2IqYEOxBUFjB0CaABgVEUkGkPSpFid7UHjWhferpXx6VkZ67N5rFR7sVwtoN3REI3GQKn6B4AxEFXBibYIiBrD5lwe40UHbxZL+NAoYX7iJJYreQx325DkMCLRKIgab55BE6AqcciyjJShYH4si3LBwtLlLJ5O5VAbcHGh00DptAFHVxAOh6EosWMAVRgyQqEQJElCKCT5VUiWQ5DloApf5ES+BUAoQTweQzTShsg/JHyxusj7AELIrrgU4iG4ffQ/xPy8mPsFU3dQnrVd1NYAAAAASUVORK5CYII=</bitmap>
     </small_bitmap>
-    <normal_bitmap item_width="32" item_height="32">
-      <bitmap_item guid="a1b2c3d4-e5f6-7890-abcd-ef1234567894" index="0" width="32" height="32">
-        <checksum>0</checksum>
-      </bitmap_item>
+    <normal_bitmap item_width="24" item_height="24">
+      <bitmap_item guid="a1b2c3d4-e5f6-7890-abcd-ef1234567030" index="0" />
+      <bitmap>iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAATkSURBVEhLlZfrTxxVGIf3xt7aureZnb0NtEBbbu0WCtgKJUsp1wK90UKCYrFAtTWVNljiBWmtWi0aYwNNTBSjsY0xJsYPVj/5yaQmJpr4d/gvPDozyxYW+sEPT86Zc877++V958w541IUpVtSlJuSIj1Bekp/p+dyrPkiiqLcdMmyvKJGVGRV2YayE0qR8vEd4i1dl+1kDchyCVGSHMRiu7lfPrZBcUxS5BKWrstKy3aUZSTbQELXYqRTGpmUTjql2+1GP20U25RWZGNOs+MkRULcYlDMYEM8m9Ixc1my2Sfksll7rNJ0yOUyZDKZ4rzVOn1rLpvWkWQnky0ZCJKEloiQy6ZJGilSKYd02iCXTVFdlaHGNNhTlWJ3ZZpMKkk6ba0xMIprk4a1Nk0iEbH1thiIkoihx0gZBslk0sYwkpiWuGnQVp/lxnQH7873c7y9hrcvFUjE48QTGrqexCjGWIZJPYYgidsNklrMXqTrOrru1NcSH+nax9obA6wu9vHle2fobqnipXPtnOlu4MDeHLvMVNFId4y06M4GeiKKpmkkEgk0LYGZSbLX1Lh1ucDyTAcfzffwzfunWH2th8mhPIvPt/PF8ihHW6qRZNWO0zUN3S5RuYEsocUjxK204zF0LU5VRqN5j8H6OyN8tjzMrdkO1pcGWVvoZmqgka+Wh7g4fICxngYmBvYjSIodn4g/xSARixCLRYnFIhhajD2mxpsvHmHl2jGuTbbx4ZWjPLg5wP35Ln745Dz9LTkefz3D0mwXhZYqREkmFo0Sj6l2RUrb1CmRRDxqfX0RolEFQ4uSrzV4a7qda+PN3Hmli9X5Th5/PsGv907z48dnmR2qZ3Y0z43JNq6fbyaqyiiKSiyqIIrlGUgi0YiMrCioqoyhqTTs0rg+nufquTzP9e7l8f0T/PP7En89nGZxrJE/Hsww1bePR/cmWF04ztlj9fj8IVtnR4OIKtkfiaxIxCMSnfszvHOxlSunGnn1fJ7vlzr5+8EUv62d5c+HM8wNN9LfavJCfx3PNqXRYk4lLB3bQNkokeKkpCoSgigiigKKJDA3XMfsQC1zg7XcnjvM2kKBn+8O8sF0M5/OdzFypIrvbp/g8kg982MH8VUEEEQBVbE0NhsUM1BkgXA4RCgUQgiHGC/s5u5sK1dP7mN+rImf7o2xvtDB6qVDTPfWcPKwydJUK4V8BlUO23GhcMjWKcvAqZksCQSDQQLBIP6An9MdJsuTTfS1pLnQV8MvK0OsXMyzPN7AbH8t375eYK63mjozgsfrs2MtZCns6JUMrJPUOmrFMH6/38bl8THRmWP9ykEUMciFbpNHS4dZnWli8miWk89kOVSboDdvUJ2ScXt8pVhRDO1sIAohKnw+vF4vuYTAzDGTxdFdDDXrvNyb485EDbfGqrk6WMlMj8loW4qOuji9+SSVumTHVVT4bB2r5FsM7AtDCOH1evB4PPh8XtxuNy6Xi1DAS8DvxV/hJRTwIQR9BANegn4PgQqvjc/rxe1x260ohp9iIFrvwF8S3oLbhdvtwuNxWovyNR6Pm1DQb+8kS29biazzQxCs3RAgGPBvI1CiYtucRTgUsOMtHevosTbP1newYSIKzsL/ixVXFLcNZBmXKMsriqra6ThYx4VzP29m484uXerlz8W4zSj//VX8CxV6AQoHTrlzAAAAAElFTkSuQmCC</bitmap>
     </normal_bitmap>
-    <large_bitmap item_width="48" item_height="48">
-      <bitmap_item guid="a1b2c3d4-e5f6-7890-abcd-ef1234567894" index="0" width="48" height="48">
-        <checksum>0</checksum>
-      </bitmap_item>
+    <large_bitmap item_width="32" item_height="32">
+      <bitmap_item guid="a1b2c3d4-e5f6-7890-abcd-ef1234567030" index="0" />
+      <bitmap>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</bitmap>
     </large_bitmap>
-  </bitmap_items>
+  </bitmaps>
 </RhinoUI>
