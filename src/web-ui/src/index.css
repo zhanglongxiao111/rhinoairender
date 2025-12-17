@@ -1040,8 +1040,12 @@ body {
   width: 100%;
   height: 100%;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
+/* 右侧 AI 生成图 - 底层，完整显示 */
 .compare-right {
   position: absolute;
   top: 0;
@@ -1059,23 +1063,25 @@ body {
   object-fit: contain;
 }
 
+/* 左侧原图 - 顶层，使用 clip-path 裁切 */
 .compare-left {
   position: absolute;
   top: 0;
   left: 0;
+  width: 100%;
   height: 100%;
-  overflow: hidden;
   z-index: 1;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
+  /* clip-path 由 JS 动态设置 */
 }
 
+/* 左侧图片和右侧图片一样的布局 */
 .compare-left img {
+  max-width: 100%;
   max-height: 100%;
   object-fit: contain;
-  position: absolute;
-  left: 0;
 }
 
 .compare-slider {

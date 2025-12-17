@@ -660,10 +660,10 @@ function App() {
                 <div className="lightbox" onClick={() => setLightboxImage(null)}>
                     <div className="lightbox-compare" onClick={(e) => e.stopPropagation()}>
                         <div className="compare-container">
-                            {/* 原始截图 - 左侧 */}
+                            {/* 原始截图 - 左侧，使用 clipPath 裁切 */}
                             <div
                                 className="compare-left"
-                                style={{ width: `${comparePosition}%` }}
+                                style={{ clipPath: `inset(0 ${100 - comparePosition}% 0 0)` }}
                             >
                                 {previewImage && (
                                     <img src={previewImage} alt="原始截图" />
