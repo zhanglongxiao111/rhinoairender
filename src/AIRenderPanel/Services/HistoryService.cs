@@ -187,21 +187,42 @@ namespace AIRenderPanel.Services
         }
 
         /// <summary>
-        /// 生成缩略图（base64）
+        /// 生成缩略图（base64）- 保持原始比例，高质量
         /// </summary>
         private string? GenerateThumbnail(string imagePath)
         {
             try
             {
                 using var original = Image.FromFile(imagePath);
-                using var thumbnail = original.GetThumbnailImage(
-                    THUMBNAIL_SIZE, 
-                    THUMBNAIL_SIZE, 
-                    () => false, 
-                    IntPtr.Zero
-                );
+                
+                // 计算保持比例的缩略图尺寸（最大边 256px）
+                const int maxSize = 256;
+                int thumbWidth, thumbHeight;
+                
+                if (original.Width > original.Height)
+                {
+                    thumbWidth = maxSize;
+                    thumbHeight = (int)((double)original.Height / original.Width * maxSize);
+                }
+                else
+                {
+                    thumbHeight = maxSize;
+                    thumbWidth = (int)((double)original.Width / original.Height * maxSize);
+                }
+                
+                // 使用高质量缩放
+                using var thumbnail = new Bitmap(thumbWidth, thumbHeight);
+                using (var g = Graphics.FromImage(thumbnail))
+                {
+                    g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                    g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
+                    g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+                    g.DrawImage(original, 0, 0, thumbWidth, thumbHeight);
+                }
+                
                 using var ms = new MemoryStream();
-                thumbnail.Save(ms, ImageFormat.Jpeg);
+                // 使用 PNG 保持质量
+                thumbnail.Save(ms, ImageFormat.Png);
                 return Convert.ToBase64String(ms.ToArray());
             }
             catch

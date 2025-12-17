@@ -72,6 +72,7 @@ function App() {
     const [showSettings, setShowSettings] = useState(false);
     const [lightboxImage, setLightboxImage] = useState<string | null>(null); // Lightbox 放大图片
     const [comparePosition, setComparePosition] = useState(50); // AB 对比滑块位置 (0-100)
+    const [draggedIndex, setDraggedIndex] = useState<number | null>(null); // 拖拽排序
     const [settings, setSettings] = useState<SettingsData>({
         outputMode: 'auto',
         outputFolder: '',
@@ -196,6 +197,28 @@ function App() {
         bridge.setSettings(settings);
         setShowSettings(false);
     }, [bridge, settings]);
+
+    // 拖拽排序处理
+    const handleDragStart = useCallback((index: number) => {
+        setDraggedIndex(index);
+    }, []);
+
+    const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
+        e.preventDefault();
+        if (draggedIndex === null || draggedIndex === index) return;
+
+        // 重新排序
+        const newImages = [...generatedImages];
+        const draggedImage = newImages[draggedIndex];
+        newImages.splice(draggedIndex, 1);
+        newImages.splice(index, 0, draggedImage);
+        setGeneratedImages(newImages);
+        setDraggedIndex(index);
+    }, [draggedIndex, generatedImages]);
+
+    const handleDragEnd = useCallback(() => {
+        setDraggedIndex(null);
+    }, []);
 
 
     const isProcessing = status === 'generating' || status === 'capturing';
@@ -454,16 +477,20 @@ function App() {
                             // 单张生成图
                             <img src={generatedImages[0]} alt="生成结果" className="preview-image" />
                         ) : (
-                            // 多张生成图 - 网格显示
+                            // 多张生成图 - 网格显示（支持拖拽排序）
                             <div className={`preview-grid ${generatedImages.length <= 2 ? 'cols-2' : generatedImages.length <= 4 ? 'cols-2-2' : 'cols-3'}`}>
                                 {generatedImages.map((img, index) => (
                                     <div
-                                        key={index}
-                                        className="preview-grid-item"
+                                        key={`img-${index}-${img.slice(-20)}`}
+                                        className={`preview-grid-item ${draggedIndex === index ? 'dragging' : ''}`}
                                         onClick={() => setLightboxImage(img)}
-                                        title="点击放大查看"
+                                        title="点击放大 / 拖拽排序"
+                                        draggable
+                                        onDragStart={() => handleDragStart(index)}
+                                        onDragOver={(e) => handleDragOver(e, index)}
+                                        onDragEnd={handleDragEnd}
                                     >
-                                        <img src={img} alt={`结果 ${index + 1}`} />
+                                        <img src={img} alt={`结果 ${index + 1}`} draggable={false} />
                                         <div className="preview-grid-index">{index + 1}</div>
                                     </div>
                                 ))}

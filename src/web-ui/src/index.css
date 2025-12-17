@@ -1198,3 +1198,18 @@ body {
   object-fit: contain;
   background: var(--color-bg-secondary);
 }
+
+/* 拖拽排序样式 */
+.preview-grid-item[draggable="true"] {
+  cursor: grab;
+}
+
+.preview-grid-item[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.preview-grid-item.dragging {
+  opacity: 0.5;
+  transform: scale(0.95);
+  box-shadow: 0 4px 20px rgba(212, 168, 83, 0.3);
+}
