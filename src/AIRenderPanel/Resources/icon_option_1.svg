@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- Concept 1: Classic Isometric "A" -->
+  <defs>
+    <style>.cls-1{fill:none;stroke:#000;stroke-width:16px;stroke-linejoin:round;}.cls-2{fill:#EBA937;}</style>
+  </defs>
+  
+  <!-- Left Side: Wireframe Outline -->
+  <path class="cls-1" d="M128,40 L60,216 H118 L128,180" />
+  <line class="cls-1" x1="128" y1="40" x2="118" y2="180" />
+  <line class="cls-1" x1="86" y1="148" x2="118" y2="148" />
+  
+  <!-- Right Side: Solid Fill -->
+  <path class="cls-2" d="M148,40 L216,216 H158 L148,180 L148,40 Z" />
+  <polygon class="cls-2" points="148 148 180 148 170 180 148 180" />
+  
+  <!-- Center "i" (Negative Space implicitly forms the stem, dot is added) -->
+  <circle fill="#EBA937" cx="138" cy="110" r="14" />
+</svg>

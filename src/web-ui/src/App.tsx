@@ -709,7 +709,7 @@ function App() {
                                         onChange={(e) => setSettings({ ...settings, apiKey: e.target.value })}
                                     />
                                     <p className="text-muted" style={{ fontSize: '11px', marginTop: '4px' }}>
-                                        也可设置环境变量 GEMINI_API_KEY
+                                        从 Google AI Studio 获取，同时支持 Gemini API 和 Vertex AI
                                     </p>
                                 </div>
 
@@ -751,6 +751,23 @@ function App() {
                                         同时勾选时，优先使用 Gemini API，失败后自动切换到 Vertex AI
                                     </p>
                                 </div>
+
+                                {/* Vertex AI API Key - 仅当启用 Vertex AI 时显示 */}
+                                {settings.useVertexAI && (
+                                    <div className="control-group">
+                                        <label className="label">Vertex AI API Key</label>
+                                        <input
+                                            type="password"
+                                            className="input"
+                                            placeholder="Vertex AI Express API Key"
+                                            value={settings.vertexApiKey || ''}
+                                            onChange={(e) => setSettings({ ...settings, vertexApiKey: e.target.value })}
+                                        />
+                                        <p className="text-muted" style={{ fontSize: '11px', marginTop: '4px' }}>
+                                            从 Google Cloud Console 获取 Vertex AI 专用 API Key
+                                        </p>
+                                    </div>
+                                )}
 
                                 <div className="control-divider" />
 

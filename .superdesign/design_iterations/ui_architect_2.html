@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SA&DAGA Architects - AI Render Prototype</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        background: "var(--background)",
+                        surface: "var(--surface)",
+                        foreground: "var(--foreground)",
+                        border: "var(--border)",
+                        accent: "var(--accent)",
+                        "accent-fg": "var(--accent-fg)",
+                        muted: "var(--muted)",
+                    },
+                    fontFamily: {
+                        sans: ['"Helvetica Neue"', 'Helvetica', 'Arial', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    },
+                    spacing: {
+                        '18': '4.5rem',
+                    },
+                    animation: {
+                        'pulse-border': 'pulseBorder 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'stripe-move': 'stripeMove 1s linear infinite',
+                        'fade-in-up': 'fadeInUp 0.3s ease-out forwards',
+                    },
+                    keyframes: {
+                        pulseBorder: {
+                            '0%, 100%': { borderColor: 'var(--border)' },
+                            '50%': { borderColor: 'var(--accent)' },
+                        },
+                        stripeMove: {
+                            '0%': { backgroundPosition: '0 0' },
+                            '100%': { backgroundPosition: '28px 0' }, 
+                        },
+                        fadeInUp: {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+    <!-- External CSS File (Simulated here for single-file portability, but ready for export) -->
+    <style>
+        :root {
+            /* Dark Mode Variables (Default) */
+            --background: #121212;
+            --surface: #1e1e1e;
+            --foreground: #e0e0e0;
+            --border: #333333;
+            --accent: #F04E30; 
+            --accent-fg: #ffffff;
+            --muted: #757575;
+        }
+
+        .light {
+            --background: #ffffff;
+            --surface: #f4f4f5;
+            --foreground: #18181b;
+            --border: #e4e4e7;
+            --accent: #D63E23; 
+            --accent-fg: #ffffff;
+            --muted: #a1a1aa;
+        }
+
+        body {
+            background-color: var(--background);
+            color: var(--foreground);
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        * { border-radius: 0 !important; }
+
+        .swiss-grid-r { border-right: 1px solid var(--border); }
+        .swiss-grid-l { border-left: 1px solid var(--border); }
+        .swiss-grid-t { border-top: 1px solid var(--border); }
+        .swiss-grid-b { border-bottom: 1px solid var(--border); }
+
+        .type-h1 { font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
+        .type-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; color: var(--muted); }
+        .type-sub { font-family: 'JetBrains Mono', monospace; font-size: 9px; text-transform: uppercase; opacity: 0.6; }
+
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); }
+        ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+        input[type=range] { -webkit-appearance: none; background: transparent; height: 20px; cursor: pointer; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 1px; background: var(--border); }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 12px; width: 12px; background: var(--foreground); border: 1px solid var(--background); margin-top: -6px; transition: background-color 0.2s; }
+        input[type=range]:hover::-webkit-slider-thumb { background: var(--accent); }
+
+        .option-card { cursor: pointer; transition: all 0.2s ease; }
+        .option-card.active { background-color: var(--foreground); color: var(--background); border-color: var(--foreground); }
+        .option-card.active .type-sub { color: var(--background); opacity: 0.8; }
+        
+        .aspect-ratio-box { cursor: pointer; transition: all 0.2s ease; }
+        .aspect-ratio-box:hover { border-color: var(--foreground); }
+        .aspect-ratio-box.active { background-color: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+        .aspect-ratio-box.active .text-muted { color: var(--accent-fg); }
+
+        select.swiss-select { appearance: none; background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23757575' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-position: right 0.75rem center; background-repeat: no-repeat; background-size: 1.2em 1.2em; }
+        
+        .bg-grid-pattern { background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px); background-size: 40px 40px; }
+
+        .masonry-col { break-inside: avoid; margin-bottom: 12px; }
+        .masonry-wrapper { column-count: 2; column-gap: 12px; }
+        
+        #history-container { transition: opacity 0.2s ease; }
+
+        .loading-stripe { background: repeating-linear-gradient(45deg, var(--accent), var(--accent) 10px, var(--surface) 10px, var(--surface) 20px); background-size: 28px 28px; animation: stripeMove 1s linear infinite; }
+
+        /* 
+           RESPONSIVE LOGIC
+        */
+        #right-sidebar {
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+        }
+        
+        /* When screen width < 1200px (Simulated), collapse sidebar */
+        @media (max-width: 1200px) {
+            #right-sidebar { width: 72px !important; } /* Collapsed width */
+            #right-sidebar .sidebar-content { opacity: 0; pointer-events: none; } /* Hide full content */
+            #right-sidebar .sidebar-collapsed-icon { opacity: 1; pointer-events: auto; } /* Show icon */
+            #right-sidebar:hover { width: 300px !important; position: absolute; right: 0; height: 100%; box-shadow: -10px 0 30px rgba(0,0,0,0.5); } /* Expand on hover */
+            #right-sidebar:hover .sidebar-content { opacity: 1; pointer-events: auto; transition-delay: 0.1s; }
+            #right-sidebar:hover .sidebar-collapsed-icon { opacity: 0; }
+        }
+        
+        /* Ensure Main Canvas retains priority */
+        main { min-width: 400px; }
+
+    </style>
+</head>
+<body class="h-screen w-screen flex overflow-hidden text-sm selection:bg-accent selection:text-accent-fg">
+
+    <!-- LEFT PANEL (Fixed) -->
+    <aside class="w-[400px] flex-shrink-0 flex flex-col bg-background swiss-grid-r z-30">
+        <!-- HEADER -->
+        <header class="p-8 pb-6 swiss-grid-b flex justify-between items-start">
+            <div>
+                <h1 class="type-h1 text-2xl mb-2 tracking-tight">SA&DAGA<br>ARCHITECTS</h1>
+                <div class="flex items-center gap-3">
+                    <span class="type-label text-foreground border border-foreground px-1 py-px">BETA</span>
+                    <span class="type-label">AI RENDER v2.0</span>
+                </div>
+            </div>
+            <button id="theme-btn" class="w-8 h-8 flex items-center justify-center border border-border hover:border-foreground transition-colors text-muted hover:text-foreground">
+                <i data-lucide="sun-moon" class="w-4 h-4"></i>
+            </button>
+        </header>
+
+        <!-- CONTROLS -->
+        <div class="flex-1 overflow-y-auto">
+            <!-- PROMPT -->
+            <div class="p-8 swiss-grid-b">
+                <div class="flex justify-between items-baseline mb-3">
+                    <label class="type-label text-accent">提示词 / Prompt</label>
+                    <span class="type-sub">CMD + ENTER</span>
+                </div>
+                <div class="relative group">
+                    <textarea class="w-full bg-surface p-4 min-h-[140px] resize-none focus:outline-none border border-transparent focus:border-accent transition-colors font-mono text-xs leading-relaxed text-foreground placeholder-muted/50" placeholder="// 在此处输入建筑场景描述..."></textarea>
+                </div>
+            </div>
+
+            <!-- PARAMETERS -->
+            <div class="swiss-grid-b">
+                <div class="p-6 swiss-grid-b">
+                     <label class="type-label block mb-3">视图来源 / Source</label>
+                     <div class="flex gap-2 mb-4" id="group-source">
+                        <button class="flex-1 option-card active p-2 text-xs font-medium border border-border transition-colors text-center group" onclick="selectOption(this, 'group-source')">
+                            当前视口 <span class="block type-sub group-hover:opacity-100 transition-opacity">Active Viewport</span>
+                        </button>
+                        <button class="flex-1 option-card bg-transparent p-2 text-xs font-medium border border-border hover:border-foreground transition-colors text-center group" onclick="selectOption(this, 'group-source')">
+                            命名视图 <span class="block type-sub group-hover:opacity-100 transition-opacity">Named View</span>
+                        </button>
+                     </div>
+                     <div class="mb-6">
+                        <button class="w-full py-2 border border-dashed border-border hover:border-accent hover:text-accent transition-colors flex items-center justify-center gap-2 text-xs active:scale-[0.98] transition-transform">
+                            <i data-lucide="scan-eye" class="w-4 h-4"></i> <span>截取当前视图预览 / Capture Preview</span>
+                        </button>
+                     </div>
+                    <div>
+                        <label class="type-label block mb-3">基础尺寸 / Base Size</label>
+                        <select class="swiss-select w-full bg-background border border-border p-2 text-xs font-mono focus:outline-none focus:border-foreground transition-colors hover:bg-surface">
+                            <option>视口原尺寸 / Native</option>
+                            <option>1920px (FHD)</option>
+                            <option>2560px (2K)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="p-6 swiss-grid-b">
+                     <label class="type-label block mb-3">生成引擎 / Engine Mode</label>
+                     <div class="grid grid-cols-2 gap-4" id="group-mode">
+                        <button class="option-card active p-4 border border-border transition-colors text-left group" onclick="selectOption(this, 'group-mode')">
+                            <span class="block text-xs font-bold mb-1">专业模式 PRO</span> <span class="block type-sub group-hover:opacity-100">高画质 · 4K</span>
+                        </button>
+                        <button class="option-card bg-transparent p-4 border border-border hover:border-foreground transition-colors text-left group" onclick="selectOption(this, 'group-mode')">
+                            <span class="block text-xs font-bold mb-1">快速模式 FLASH</span> <span class="block type-sub group-hover:opacity-100">极速预览</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2">
+                    <div class="p-6 swiss-grid-r swiss-grid-b" id="group-res">
+                        <label class="type-label block mb-3">输出分辨率 / Res</label>
+                        <div class="space-y-3">
+                             <label class="flex items-center gap-3 cursor-pointer group select-none" onclick="selectRadio(this, 'group-res')">
+                                <div class="w-3 h-3 border border-border group-hover:border-foreground flex items-center justify-center transition-colors"><div class="w-1.5 h-1.5 bg-foreground opacity-0 active-check"></div></div><span class="font-mono text-xs text-muted group-hover:text-foreground transition-colors">1K</span>
+                            </label>
+                            <label class="flex items-center gap-3 cursor-pointer group select-none" onclick="selectRadio(this, 'group-res')">
+                                <div class="w-3 h-3 border border-border group-hover:border-foreground flex items-center justify-center transition-colors"><div class="w-1.5 h-1.5 bg-foreground opacity-0 active-check"></div></div><span class="font-mono text-xs text-muted group-hover:text-foreground transition-colors">2K</span>
+                            </label>
+                            <label class="flex items-center gap-3 cursor-pointer group select-none active-radio" onclick="selectRadio(this, 'group-res')">
+                                <div class="w-3 h-3 border border-foreground flex items-center justify-center"><div class="w-1.5 h-1.5 bg-foreground"></div></div><span class="font-mono text-xs font-bold">4K</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="p-6 swiss-grid-b" id="group-count">
+                        <label class="type-label block mb-3">数量 / Count</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button class="h-8 border border-border hover:border-foreground text-xs font-mono transition-colors active" onclick="selectButton(this, 'group-count')">1</button>
+                            <button class="h-8 border border-border hover:border-foreground text-xs font-mono transition-colors" onclick="selectButton(this, 'group-count')">2</button>
+                            <button class="h-8 border border-border hover:border-foreground text-xs font-mono transition-colors" onclick="selectButton(this, 'group-count')">3</button>
+                            <button class="h-8 border border-border hover:border-foreground text-xs font-mono transition-colors" onclick="selectButton(this, 'group-count')">4</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-6 swiss-grid-b">
+                    <label class="type-label block mb-4">画幅比例 / Aspect Ratio</label>
+                    <div class="grid grid-cols-5 gap-2" id="group-ratio">
+                        <button class="aspect-ratio-box col-span-1 py-2 border border-border transition-colors group" title="Auto" onclick="selectBox(this)"><span class="text-[9px] font-mono group-hover:font-bold">AUTO</span></button>
+                        <button class="aspect-ratio-box col-span-1 py-2 border border-border transition-colors group" onclick="selectBox(this)"><span class="text-[9px] font-mono group-hover:font-bold">1:1</span></button>
+                         <button class="aspect-ratio-box active col-span-1 py-2 border border-border transition-colors group" onclick="selectBox(this)"><span class="text-[9px] font-mono font-bold">16:9</span></button>
+                         <button class="aspect-ratio-box col-span-1 py-2 border border-border transition-colors group" onclick="selectBox(this)"><span class="text-[9px] font-mono group-hover:font-bold">9:16</span></button>
+                         <button class="aspect-ratio-box col-span-1 py-2 border border-border transition-colors group" onclick="selectBox(this)"><span class="text-[9px] font-mono group-hover:font-bold">4:3</span></button>
+                         <button class="aspect-ratio-box col-span-1 py-2 border border-border transition-colors group" onclick="selectBox(this)"><span class="text-[9px] font-mono group-hover:font-bold">3:4</span></button>
+                         <button class="aspect-ratio-box col-span-1 py-2 border border-border transition-colors group" onclick="selectBox(this)"><span class="text-[9px] font-mono group-hover:font-bold">3:2</span></button>
+                         <button class="aspect-ratio-box col-span-1 py-2 border border-border transition-colors group" onclick="selectBox(this)"><span class="text-[9px] font-mono group-hover:font-bold">2:3</span></button>
+                         <button class="aspect-ratio-box col-span-1 py-2 border border-border transition-colors group" onclick="selectBox(this)"><span class="text-[9px] font-mono group-hover:font-bold">4:5</span></button>
+                         <button class="aspect-ratio-box col-span-1 py-2 border border-border transition-colors group" onclick="selectBox(this)"><span class="text-[9px] font-mono group-hover:font-bold">5:4</span></button>
+                         <button class="aspect-ratio-box col-span-5 py-2 border border-border transition-colors group flex items-center justify-center gap-2" onclick="selectBox(this)"><span class="text-[9px] font-mono group-hover:font-bold">21:9 CINEMATIC</span></button>
+                    </div>
+                </div>
+
+                <div class="p-6">
+                    <div class="mb-2">
+                         <div class="flex justify-between mb-3">
+                             <label class="type-label">对比度 / Contrast <span class="text-muted font-normal normal-case ml-1">(Flash Only)</span></label>
+                             <span class="font-mono text-xs text-accent" id="contrast-val">-92%</span>
+                        </div>
+                        <input type="range" class="w-full" min="-100" max="0" value="-92" oninput="document.getElementById('contrast-val').innerText = this.value + '%'">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-6 mt-auto bg-background swiss-grid-t flex gap-3 z-40">
+            <button class="w-12 h-12 border border-border hover:border-foreground flex items-center justify-center transition-colors group" title="Settings"><i data-lucide="settings-2" class="w-5 h-5 text-muted group-hover:text-foreground transition-colors"></i></button>
+            <button id="render-btn" class="flex-1 h-12 bg-accent text-accent-fg hover:opacity-90 active:translate-y-[1px] transition-all flex items-center justify-between px-6 font-bold tracking-wide uppercase text-sm overflow-hidden relative">
+                <span class="relative z-10" id="render-text">开始渲染 / Render</span>
+                <i data-lucide="arrow-right" class="w-4 h-4 relative z-10" id="render-icon"></i>
+                <div id="render-stripe" class="absolute inset-0 loading-stripe hidden opacity-20 z-0"></div>
+            </button>
+        </div>
+    </aside>
+
+    <!-- CENTER CANVAS (Fluid) -->
+    <main class="flex-1 bg-surface relative flex flex-col min-w-0 z-10 border-r border-border">
+        <!-- TOOLBAR -->
+        <div class="h-14 swiss-grid-b bg-background flex justify-between items-center px-6">
+            <div class="flex items-center gap-6">
+                <div class="flex items-center gap-2 text-xs font-mono text-muted"><i data-lucide="folder" class="w-3 h-3"></i><span>PROJECT_VILLA_01.3DM</span></div>
+                <div class="h-4 w-px bg-border"></div>
+                <div class="flex items-center gap-2 text-xs font-mono"><span class="text-accent animate-pulse">●</span><span>LIVE</span></div>
+            </div>
+            <div class="flex items-center gap-3">
+                 <div class="flex bg-surface border border-border">
+                    <button class="px-3 py-2 bg-foreground text-background text-xs font-bold uppercase transition-colors">Render</button>
+                    <div class="w-px bg-background"></div>
+                    <button class="px-3 py-2 hover:bg-background hover:text-foreground text-xs font-bold uppercase text-muted transition-colors">Source</button>
+                    <div class="w-px bg-border"></div>
+                    <button class="p-2 hover:bg-background hover:text-foreground text-muted" title="Compare"><i data-lucide="columns" class="w-4 h-4"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- CANVAS -->
+        <div class="flex-1 overflow-hidden relative flex items-center justify-center p-12 bg-grid-pattern">
+            <div id="canvas-wrapper" class="relative shadow-[0_0_50px_rgba(0,0,0,0.5)] max-w-full max-h-full border border-border/50 group bg-black transition-all duration-300">
+                <div class="absolute top-0 left-0 bg-accent text-accent-fg px-3 py-1 text-[10px] font-bold uppercase tracking-wider z-20">AI Render Preview</div>
+                <img src="https://images.unsplash.com/photo-1600607686527-6fb886090705?q=80&w=2400&auto=format&fit=crop" class="max-w-full max-h-[calc(100vh-180px)] block opacity-90 group-hover:opacity-100 transition-opacity" alt="Render">
+                <div class="absolute bottom-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0 flex gap-4 z-20">
+                    <button class="bg-background text-foreground border border-foreground px-6 py-2 text-xs font-bold hover:bg-foreground hover:text-background transition-colors uppercase tracking-widest">放大查看 / Expand</button>
+                    <button class="bg-accent text-accent-fg px-6 py-2 text-xs font-bold hover:opacity-90 transition-colors uppercase tracking-widest">下载 / Download</button>
+                </div>
+            </div>
+            <!-- STATUS OVERLAY -->
+            <div id="status-overlay" class="absolute inset-0 flex items-center justify-center pointer-events-none hidden z-50">
+                <div class="bg-background/90 backdrop-blur border border-accent p-6 text-center shadow-2xl animate-fade-in-up min-w-[320px]">
+                    <div class="text-accent text-2xl font-bold mb-2 font-mono" id="timer-display">00:00.00</div>
+                    <div class="text-foreground text-sm font-bold uppercase tracking-widest mb-1" id="witty-text">...</div>
+                    <div class="h-1 w-full bg-border mt-3 overflow-hidden relative"><div class="absolute inset-0 bg-accent w-1/3 animate-[stripeMove_1s_infinite_linear]" style="left: -33%"></div></div>
+                    <div class="text-[10px] text-muted font-mono uppercase mt-2">Gemini AI Processing</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- RIGHT PANEL (Collapsible) -->
+    <aside id="right-sidebar" class="w-[300px] flex-shrink-0 bg-background flex flex-col z-20 relative border-l border-border">
+        
+        <!-- Collapsed Icon (Only visible when collapsed) -->
+        <div class="sidebar-collapsed-icon absolute inset-x-0 top-0 h-[113px] flex flex-col items-center justify-end pb-6 opacity-0 pointer-events-none transition-opacity duration-300">
+             <i data-lucide="history" class="w-6 h-6 text-muted"></i>
+        </div>
+
+        <!-- Full Content -->
+        <div class="sidebar-content flex-1 flex flex-col h-full transition-opacity duration-300">
+            <div class="p-6 swiss-grid-b h-[113px] flex items-end justify-between">
+                <div>
+                    <h2 class="type-h1 text-lg mb-1">SESSION<br>HISTORY</h2>
+                    <span class="type-label">DEC 17, 2025</span>
+                </div>
+                <div class="flex gap-1">
+                     <button id="view-list" class="p-1 text-foreground" title="List View"><i data-lucide="list" class="w-4 h-4"></i></button>
+                     <button id="view-grid" class="p-1 text-muted hover:text-foreground" title="Masonry View"><i data-lucide="layout-dashboard" class="w-4 h-4"></i></button>
+                </div>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-6" id="history-scroll">
+                <div id="history-container" class="space-y-6">
+                    <!-- Injected via JS -->
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <script>
+        lucide.createIcons();
+        window.selectOption = function(el, groupId) { const group = document.getElementById(groupId); const buttons = group.getElementsByTagName('button'); for(let btn of buttons) { btn.classList.remove('active'); btn.classList.add('bg-transparent'); const sub = btn.querySelector('.type-sub'); if(sub) sub.classList.remove('opacity-80', 'text-background'); } el.classList.add('active'); el.classList.remove('bg-transparent'); const sub = el.querySelector('.type-sub'); if(sub) sub.classList.add('opacity-80', 'text-background'); }
+        window.selectRadio = function(el, groupId) { const group = document.getElementById(groupId); const labels = group.getElementsByTagName('label'); for(let lbl of labels) { const box = lbl.querySelector('div:first-child'); const dot = box.querySelector('div'); const text = lbl.querySelector('span'); box.classList.remove('border-foreground'); box.classList.add('border-border'); dot.classList.remove('bg-foreground'); dot.classList.add('bg-foreground', 'opacity-0'); text.classList.remove('font-bold', 'text-foreground'); text.classList.add('text-muted'); } const box = el.querySelector('div:first-child'); const dot = box.querySelector('div'); const text = el.querySelector('span'); box.classList.add('border-foreground'); box.classList.remove('border-border'); dot.classList.remove('opacity-0'); text.classList.add('font-bold', 'text-foreground'); text.classList.remove('text-muted'); }
+        window.selectButton = function(el, groupId) { const group = document.getElementById(groupId); const btns = group.getElementsByTagName('button'); for(let btn of btns) { btn.classList.remove('bg-foreground', 'text-background', 'font-bold', 'border-foreground'); btn.classList.add('border-border'); } el.classList.add('bg-foreground', 'text-background', 'font-bold', 'border-foreground'); el.classList.remove('border-border'); }
+        window.selectBox = function(el) { const parent = el.parentElement; const children = parent.children; for(let child of children) { child.classList.remove('active'); const text = child.querySelector('span'); text.classList.remove('font-bold'); } el.classList.add('active'); const text = el.querySelector('span'); text.classList.add('font-bold'); }
+
+        const historyData = [ { id: 1, img: "https://images.unsplash.com/photo-1600607686527-6fb886090705?q=80&w=400", title: "Modern Concrete Villa", time: "14:20", tags: "PRO · 4K · 16:9", aspect: "aspect-video" }, { id: 2, img: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=400", title: "Interior Hallway", time: "14:15", tags: "FLASH · 2K · 4:3", aspect: "aspect-[4/3]" }, { id: 3, img: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=400", title: "Facade Detail", time: "13:50", tags: "PRO · 1K · 1:1", aspect: "aspect-square" }, { id: 4, img: "https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?q=80&w=400", title: "Garden View", time: "13:42", tags: "FLASH · 2K · 9:16", aspect: "aspect-[9/16]" }, { id: 5, img: "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?q=80&w=400", title: "Night Scene", time: "13:30", tags: "PRO · 4K · 21:9", aspect: "aspect-[21/9]" }, ];
+        const container = document.getElementById('history-container'); const btnList = document.getElementById('view-list'); const btnGrid = document.getElementById('view-grid');
+        let currentView = 'list';
+        function renderList() { container.className = "space-y-6"; container.innerHTML = historyData.map(item => `<div class="group cursor-pointer border-l-2 border-transparent hover:border-accent pl-2 -ml-2 transition-all"><div class="relative ${item.aspect} bg-surface border border-transparent group-hover:border-foreground mb-3 overflow-hidden transition-colors"><img src="${item.img}" class="w-full h-full object-cover"></div><div class="flex justify-between items-start"><div><span class="block text-xs font-bold mb-1 group-hover:text-accent transition-colors">${item.title}</span><span class="block type-sub text-muted">${item.tags}</span></div><span class="type-sub text-muted">${item.time}</span></div></div>`).join(''); btnList.classList.replace('text-muted', 'text-foreground'); btnGrid.classList.replace('text-foreground', 'text-muted'); }
+        function renderGrid() { container.className = "masonry-wrapper"; container.innerHTML = historyData.map(item => `<div class="masonry-col group cursor-pointer break-inside-avoid mb-3"><div class="relative w-full bg-surface border border-transparent group-hover:border-accent overflow-hidden transition-colors"><img src="${item.img}" class="w-full h-auto object-cover block"><div class="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"><span class="text-[9px] font-mono text-white">${item.time}</span></div></div></div>`).join(''); btnGrid.classList.replace('text-muted', 'text-foreground'); btnList.classList.replace('text-foreground', 'text-muted'); }
+        renderList();
+        btnList.addEventListener('click', () => { if(currentView === 'list') return; container.style.opacity = '0'; setTimeout(() => { renderList(); currentView = 'list'; container.style.opacity = '1'; }, 200); });
+        btnGrid.addEventListener('click', () => { if(currentView === 'grid') return; container.style.opacity = '0'; setTimeout(() => { renderGrid(); currentView = 'grid'; container.style.opacity = '1'; }, 200); });
+        
+        const renderBtn = document.getElementById('render-btn'); const renderText = document.getElementById('render-text'); const renderIcon = document.getElementById('render-icon'); const renderStripe = document.getElementById('render-stripe'); const canvasWrapper = document.getElementById('canvas-wrapper'); const statusOverlay = document.getElementById('status-overlay'); const wittyText = document.getElementById('witty-text'); const timerDisplay = document.getElementById('timer-display');
+                // Extended Witty Library (Chinese Architect Edition)
+        const messages = {
+            start: [
+                "正在唤醒沉睡的 GPU...",
+                "显卡风扇已起飞...",
+                "正在连接到灵感矩阵...",
+                "正在与 Gemini Pro 建立神经连接...",
+                "载入建筑几何体数据..."
+            ],
+            waiting: [
+                "正在教 AI 什么是‘五彩斑斓的黑’...",
+                "正在跟柯布西耶探讨光影...",
+                "别催了，正在一块砖一块砖地砌...",
+                "正在计算空气中尘埃的丁达尔效应...",
+                "正在给混凝土表面添加沧桑感...",
+                "AI 正在思考：这是窗户还是门？...",
+                "正在渲染那个‘五分钟后就要’的方案...",
+                "正在把‘感觉不对’转化为像素...",
+                "正在模拟甲方满意的眼神...",
+                "正在寻找丢失的光子...",
+                "正在阅读《建筑十书》...",
+                "正在模拟苏黎世的阴雨天光线...",
+                "正在对齐每一个像素的网格...",
+                "慢工出细活，AI 也是..."
+            ],
+            progress: [
+                "正在上传几何体数据... 24%",
+                "正在进行光线追踪降噪... 56%",
+                "正在细化材质纹理... 78%",
+                "最终像素光栅化... 89%",
+                "正在进行最后的色彩校正... 99%"
+            ]
+        };
+        let isGenerating = false; let timerInterval, messageInterval; let startTime;
+        renderBtn.addEventListener('click', () => { if(isGenerating) return; isGenerating = true; renderText.innerText = "生成中 / Generating..."; renderIcon.classList.add('hidden'); renderStripe.classList.remove('hidden'); canvasWrapper.classList.add('animate-pulse-border'); canvasWrapper.style.opacity = '0.4'; statusOverlay.classList.remove('hidden'); startTime = Date.now(); timerInterval = setInterval(() => { const elapsed = Date.now() - startTime; const seconds = Math.floor(elapsed / 1000); const ms = Math.floor((elapsed % 1000) / 10); timerDisplay.innerText = `00:${seconds.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`; }, 50); wittyText.innerText = messages.start[Math.floor(Math.random() * messages.start.length)]; messageInterval = setInterval(() => { const r = Math.random(); if(r > 0.7) { const pMsg = messages.progress[Math.floor(Math.random() * messages.progress.length)]; wittyText.innerText = `>> ${pMsg}`; wittyText.classList.add('text-accent'); wittyText.classList.remove('text-foreground'); } else { const wMsg = messages.waiting[Math.floor(Math.random() * messages.waiting.length)]; wittyText.innerText = wMsg; wittyText.classList.remove('text-accent'); wittyText.classList.add('text-foreground'); } }, 2500); setTimeout(() => { stopGeneration(); }, 10000); });
+        function stopGeneration() { isGenerating = false; renderText.innerText = "开始渲染 / Render"; renderIcon.classList.remove('hidden'); renderStripe.classList.add('hidden'); canvasWrapper.classList.remove('animate-pulse-border'); canvasWrapper.style.opacity = '1'; statusOverlay.classList.add('hidden'); clearInterval(timerInterval); clearInterval(messageInterval); }
+        const themeBtn = document.getElementById('theme-btn'); const html = document.documentElement; themeBtn.addEventListener('click', () => { if (html.classList.contains('dark')) { html.classList.remove('dark'); html.classList.add('light'); } else { html.classList.remove('light'); html.classList.add('dark'); } });
+    </script>
+</body>
+</html>

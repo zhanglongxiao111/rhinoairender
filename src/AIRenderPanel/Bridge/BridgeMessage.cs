@@ -124,6 +124,12 @@ namespace AIRenderPanel.Bridge
         [JsonProperty("apiKey")]
         public string? ApiKey { get; set; }
 
+        /// <summary>
+        /// Vertex AI 专用 API Key
+        /// </summary>
+        [JsonProperty("vertexApiKey")]
+        public string? VertexApiKey { get; set; }
+
         [JsonProperty("provider")]
         public string Provider { get; set; } = "gemini";
 

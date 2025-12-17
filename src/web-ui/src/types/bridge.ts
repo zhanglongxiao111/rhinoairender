@@ -34,6 +34,7 @@ export interface SettingsData {
     outputMode: 'auto' | 'fixed';
     outputFolder?: string;
     apiKey?: string;
+    vertexApiKey?: string;  // Vertex AI 单独的 API Key
     provider: string;
     devMode: boolean;
     proxyUrl?: string;  // 代理地址，例如 http://127.0.0.1:7890

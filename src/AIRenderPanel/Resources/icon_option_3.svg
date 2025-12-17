@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- Concept 3: Modern Minimalist Block -->
+  <defs>
+    <style>.black-part{fill:#000000;}.gold-part{fill:#EBA937;}</style>
+  </defs>
+  
+  <!-- Left: Black Outline Structure -->
+  <path class="black-part" d="M120,30 L40,226 L100,226 L120,176 L120,30 Z M100,196 L70,196 L105,100 L100,196 Z" fill-rule="evenodd" />
+  <!-- Simplifying left to just a thick stroke look manually -->
+  <path class="black-part" d="M110,40 L60,216 H100 V166 H65 L110,40Z" style="display:none"/> <!-- Test hidden -->
+  
+  <path class="black-part" d="M116,36 L56,220 H96 V160 H76 L116,36 Z"/> 
+  <rect class="black-part" x="80" y="130" width="36" height="10"/>
+
+  <!-- Right: Solid Gold Block -->
+  <path class="gold-part" d="M140,36 L200,220 H160 V160 H180 L140,36 Z"/>
+  <rect class="gold-part" x="140" y="130" width="36" height="10"/>
+  <rect class="gold-part" x="140" y="36" width="30" height="184"/> <!-- Main vertical -->
+  
+  <!-- Let's redraw for cleaner geometry -->
+  <g id="Refined">
+      <!-- Left Leg (Black Outline) -->
+      <path class="black-part" d="M120,40 L60,216 H90 L120,120 V40 Z M84,216 L120,120 M75,160 H110" fill="none" stroke="black" stroke-width="14" stroke-linejoin="round"/>
+      
+      <!-- Right Leg (Gold Solid) -->
+      <path class="gold-part" d="M136,40 L196,216 H166 L136,120 V40 Z" />
+      <path class="gold-part" d="M136,140 H170 L160,170 H136 V140Z" />
+
+      <!-- i Dot -->
+      <circle cx="128" cy="85" r="14" fill="#EBA937" />
+  </g>
+</svg>

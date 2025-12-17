@@ -41,6 +41,7 @@ namespace AIRenderPanel.Providers
         // 端点设置
         private bool _useGeminiApi = true;
         private bool _useVertexAI = false;
+        private string? _vertexApiKey;  // Vertex AI 单独的 API Key
 
         public GeminiProvider(Func<string?> getApiKey, Func<string?>? getProxyUrl = null)
         {
@@ -135,11 +136,12 @@ namespace AIRenderPanel.Providers
         /// <summary>
         /// 设置 API 端点选项
         /// </summary>
-        public void SetApiEndpoints(bool useGeminiApi, bool useVertexAI)
+        public void SetApiEndpoints(bool useGeminiApi, bool useVertexAI, string? vertexApiKey = null)
         {
             _useGeminiApi = useGeminiApi;
             _useVertexAI = useVertexAI;
-            RhinoApp.WriteLine($"[AI渲染] API 端点设置: Gemini API={useGeminiApi}, Vertex AI={useVertexAI}");
+            _vertexApiKey = vertexApiKey;
+            RhinoApp.WriteLine($"[AI渲染] API 端点设置: Gemini API={useGeminiApi}, Vertex AI={useVertexAI}, Vertex Key={!string.IsNullOrEmpty(vertexApiKey)}");
         }
 
         private string CurrentModel => _useProMode ? MODEL_PRO : MODEL_FLASH;
@@ -289,7 +291,9 @@ namespace AIRenderPanel.Providers
             }
             if (_useVertexAI)
             {
-                endpoints.Add(("Vertex AI", $"{VERTEX_AI_BASE}/{CurrentModel}:generateContent?key={apiKey}"));
+                // Vertex AI 使用单独的 API Key
+                var vertexKey = !string.IsNullOrEmpty(_vertexApiKey) ? _vertexApiKey : apiKey;
+                endpoints.Add(("Vertex AI", $"{VERTEX_AI_BASE}/{CurrentModel}:generateContent?key={vertexKey}"));
             }
             
             if (endpoints.Count == 0)

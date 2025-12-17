@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- Concept 2: Sharp Triangle "Compass" Style -->
+  <defs>
+    <style>.stroke{fill:none;stroke:#1A1A1A;stroke-width:14px;stroke-linecap:round;stroke-linejoin:round;}.fill{fill:#F59E0B;}</style>
+  </defs>
+  
+  <!-- Left Leg: Structural Line -->
+  <polyline class="stroke" points="120 40 50 220 110 220" />
+  <line class="stroke" x1="80" y1="140" x2="120" y2="140" />
+  
+  <!-- Right Leg: Solid Slab -->
+  <path class="fill" d="M136,40 L206,220 H146 L136,180 L136,40 Z" />
+  <polygon class="fill" points="136 140 176 140 160 180 136 180" />
+  
+  <!-- The Dot for "i" -->
+  <circle fill="#1A1A1A" cx="128" cy="90" r="12" />
+  
+  <!-- Vertical separator hint -->
+  <line x1="128" y1="110" x2="128" y2="220" stroke="white" stroke-width="8" />
+</svg>

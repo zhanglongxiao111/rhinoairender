@@ -281,7 +281,7 @@ namespace AIRenderPanel.Bridge
                     
                     // 设置 API 端点选项
                     var settings = _settingsService.LoadSettings();
-                    geminiProvider.SetApiEndpoints(settings.UseGeminiApi, settings.UseVertexAI);
+                    geminiProvider.SetApiEndpoints(settings.UseGeminiApi, settings.UseVertexAI, settings.VertexApiKey);
                     
                     RhinoApp.WriteLine($"[AI渲染] 使用 Gemini Provider, 模式: {(useProMode ? "专业" : "快速")}, 分辨率: {request.Resolution}, 比例: {request.AspectRatio ?? "Auto"}");
                 }
