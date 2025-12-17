@@ -77,6 +77,10 @@ namespace AIRenderPanel.Bridge
                         HandleGetHistory();
                         break;
 
+                    case "loadHistoryImages":
+                        HandleLoadHistoryImages(message.Data);
+                        break;
+
                     default:
                         RhinoApp.WriteLine($"[AI渲染] 未知消息类型: {message.Type}");
                         break;
@@ -378,6 +382,34 @@ namespace AIRenderPanel.Bridge
         {
             var items = _historyService.GetHistoryItems();
             _sendMessage("historyUpdate", new HistoryUpdateResponse { Items = items });
+        }
+
+        private void HandleLoadHistoryImages(object? data)
+        {
+            if (data == null) return;
+
+            try
+            {
+                var request = JsonConvert.DeserializeObject<LoadHistoryImagesRequest>(data.ToString()!);
+                if (request == null || request.Paths == null) return;
+
+                var images = new List<string>();
+                foreach (var path in request.Paths)
+                {
+                    if (File.Exists(path))
+                    {
+                        var bytes = File.ReadAllBytes(path);
+                        var base64 = Convert.ToBase64String(bytes);
+                        images.Add($"data:image/png;base64,{base64}");
+                    }
+                }
+
+                _sendMessage("historyImages", new HistoryImagesResponse { Images = images });
+            }
+            catch (Exception ex)
+            {
+                SendError("加载历史图片失败", ex.Message);
+            }
         }
 
         private void SendError(string message, string? details = null)

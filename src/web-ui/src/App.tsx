@@ -126,6 +126,12 @@ function App() {
         onHistoryUpdate: (data) => {
             setHistory(data.items);
         },
+        onHistoryImages: (data) => {
+            // 收到原图后更新显示
+            if (data.images && data.images.length > 0) {
+                setGeneratedImages(data.images);
+            }
+        },
     });
 
     // 初始化
@@ -535,14 +541,15 @@ function App() {
                                     className={`history-item ${selectedHistoryItem?.id === item.id ? 'active' : ''}`}
                                     onClick={() => {
                                         setSelectedHistoryItem(item);
-                                        if (item.thumbnails.length > 0) {
-                                            setGeneratedImages(item.thumbnails.map(t => `data:image/jpeg;base64,${t}`));
+                                        // 加载原图而非缩略图
+                                        if (item.paths && item.paths.length > 0) {
+                                            bridge.loadHistoryImages(item.paths);
                                         }
                                     }}
                                 >
                                     <div className="history-thumb">
                                         {item.thumbnails.length > 0 && (
-                                            <img src={`data:image/jpeg;base64,${item.thumbnails[0]}`} alt="" />
+                                            <img src={`data:image/png;base64,${item.thumbnails[0]}`} alt="" />
                                         )}
                                     </div>
                                     <div className="history-info">
@@ -567,151 +574,155 @@ function App() {
                         </div>
                     )}
                 </aside>
-            </div>
+            </div >
 
             {/* 设置弹窗 */}
-            {showSettings && (
-                <div className="modal-overlay" onClick={() => setShowSettings(false)}>
-                    <div className="modal" onClick={(e) => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <div className="modal-title">设置</div>
-                            <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setShowSettings(false)}>
-                                ✕
-                            </button>
-                        </div>
-                        <div className="modal-body">
-                            <div className="control-group">
-                                <label className="label">API Key</label>
-                                <input
-                                    type="password"
-                                    className="input"
-                                    placeholder="Google AI API Key"
-                                    value={settings.apiKey || ''}
-                                    onChange={(e) => setSettings({ ...settings, apiKey: e.target.value })}
-                                />
-                                <p className="text-muted" style={{ fontSize: '11px', marginTop: '4px' }}>
-                                    也可设置环境变量 GEMINI_API_KEY
-                                </p>
+            {
+                showSettings && (
+                    <div className="modal-overlay" onClick={() => setShowSettings(false)}>
+                        <div className="modal" onClick={(e) => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <div className="modal-title">设置</div>
+                                <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setShowSettings(false)}>
+                                    ✕
+                                </button>
                             </div>
-
-                            <div className="control-group">
-                                <label className="label">代理地址</label>
-                                <input
-                                    type="text"
-                                    className="input"
-                                    placeholder="例如 http://127.0.0.1:7890"
-                                    value={settings.proxyUrl || ''}
-                                    onChange={(e) => setSettings({ ...settings, proxyUrl: e.target.value })}
-                                />
-                                <p className="text-muted" style={{ fontSize: '11px', marginTop: '4px' }}>
-                                    留空使用系统代理，也可设置 HTTP_PROXY 环境变量
-                                </p>
-                            </div>
-
-                            <div className="control-divider" />
-
-                            <div className="control-group">
-                                <label className="label">输出目录</label>
-                                <div className="segment-group">
-                                    <div
-                                        className={`segment-option ${settings.outputMode === 'auto' ? 'active' : ''}`}
-                                        onClick={() => setSettings({ ...settings, outputMode: 'auto' })}
-                                    >
-                                        跟随文件
-                                    </div>
-                                    <div
-                                        className={`segment-option ${settings.outputMode === 'fixed' ? 'active' : ''}`}
-                                        onClick={() => setSettings({ ...settings, outputMode: 'fixed' })}
-                                    >
-                                        固定目录
-                                    </div>
-                                </div>
-                            </div>
-
-                            {settings.outputMode === 'fixed' && (
+                            <div className="modal-body">
                                 <div className="control-group">
+                                    <label className="label">API Key</label>
+                                    <input
+                                        type="password"
+                                        className="input"
+                                        placeholder="Google AI API Key"
+                                        value={settings.apiKey || ''}
+                                        onChange={(e) => setSettings({ ...settings, apiKey: e.target.value })}
+                                    />
+                                    <p className="text-muted" style={{ fontSize: '11px', marginTop: '4px' }}>
+                                        也可设置环境变量 GEMINI_API_KEY
+                                    </p>
+                                </div>
+
+                                <div className="control-group">
+                                    <label className="label">代理地址</label>
                                     <input
                                         type="text"
                                         className="input"
-                                        placeholder="D:\Renders"
-                                        value={settings.outputFolder || ''}
-                                        onChange={(e) => setSettings({ ...settings, outputFolder: e.target.value })}
+                                        placeholder="例如 http://127.0.0.1:7890"
+                                        value={settings.proxyUrl || ''}
+                                        onChange={(e) => setSettings({ ...settings, proxyUrl: e.target.value })}
                                     />
+                                    <p className="text-muted" style={{ fontSize: '11px', marginTop: '4px' }}>
+                                        留空使用系统代理，也可设置 HTTP_PROXY 环境变量
+                                    </p>
                                 </div>
-                            )}
-                        </div>
-                        <div className="modal-footer">
-                            <button className="btn btn-secondary" onClick={() => setShowSettings(false)}>
-                                取消
-                            </button>
-                            <button className="btn btn-primary" onClick={handleSaveSettings}>
-                                保存
-                            </button>
+
+                                <div className="control-divider" />
+
+                                <div className="control-group">
+                                    <label className="label">输出目录</label>
+                                    <div className="segment-group">
+                                        <div
+                                            className={`segment-option ${settings.outputMode === 'auto' ? 'active' : ''}`}
+                                            onClick={() => setSettings({ ...settings, outputMode: 'auto' })}
+                                        >
+                                            跟随文件
+                                        </div>
+                                        <div
+                                            className={`segment-option ${settings.outputMode === 'fixed' ? 'active' : ''}`}
+                                            onClick={() => setSettings({ ...settings, outputMode: 'fixed' })}
+                                        >
+                                            固定目录
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {settings.outputMode === 'fixed' && (
+                                    <div className="control-group">
+                                        <input
+                                            type="text"
+                                            className="input"
+                                            placeholder="D:\Renders"
+                                            value={settings.outputFolder || ''}
+                                            onChange={(e) => setSettings({ ...settings, outputFolder: e.target.value })}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                            <div className="modal-footer">
+                                <button className="btn btn-secondary" onClick={() => setShowSettings(false)}>
+                                    取消
+                                </button>
+                                <button className="btn btn-primary" onClick={handleSaveSettings}>
+                                    保存
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* 错误提示 */}
             {error && <div className="toast">{error}</div>}
 
             {/* 图片 AB 对比 Lightbox */}
-            {lightboxImage && (
-                <div className="lightbox" onClick={() => setLightboxImage(null)}>
-                    <div className="lightbox-compare" onClick={(e) => e.stopPropagation()}>
-                        <div className="compare-container">
-                            {/* 原始截图 - 左侧，使用 clipPath 裁切 */}
-                            <div
-                                className="compare-left"
-                                style={{ clipPath: `inset(0 ${100 - comparePosition}% 0 0)` }}
-                            >
-                                {previewImage && (
-                                    <img src={previewImage} alt="原始截图" />
-                                )}
-                                <div className="compare-label compare-label-left">原始截图</div>
+            {
+                lightboxImage && (
+                    <div className="lightbox" onClick={() => setLightboxImage(null)}>
+                        <div className="lightbox-compare" onClick={(e) => e.stopPropagation()}>
+                            <div className="compare-container">
+                                {/* 原始截图 - 左侧，使用 clipPath 裁切 */}
+                                <div
+                                    className="compare-left"
+                                    style={{ clipPath: `inset(0 ${100 - comparePosition}% 0 0)` }}
+                                >
+                                    {previewImage && (
+                                        <img src={previewImage} alt="原始截图" />
+                                    )}
+                                    <div className="compare-label compare-label-left">原始截图</div>
+                                </div>
+
+                                {/* AI 生成图 - 右侧（底层） */}
+                                <div className="compare-right">
+                                    <img src={lightboxImage} alt="AI 渲染" />
+                                    <div className="compare-label compare-label-right">AI 渲染</div>
+                                </div>
+
+                                {/* 分割线 */}
+                                <div
+                                    className="compare-slider"
+                                    style={{ left: `${comparePosition}%` }}
+                                    onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        const container = e.currentTarget.parentElement;
+                                        if (!container) return;
+
+                                        const handleMove = (moveEvent: MouseEvent) => {
+                                            const rect = container.getBoundingClientRect();
+                                            const x = moveEvent.clientX - rect.left;
+                                            const percent = Math.max(0, Math.min(100, (x / rect.width) * 100));
+                                            setComparePosition(percent);
+                                        };
+
+                                        const handleUp = () => {
+                                            document.removeEventListener('mousemove', handleMove);
+                                            document.removeEventListener('mouseup', handleUp);
+                                        };
+
+                                        document.addEventListener('mousemove', handleMove);
+                                        document.addEventListener('mouseup', handleUp);
+                                    }}
+                                >
+                                    <div className="compare-slider-handle">◀ ▶</div>
+                                </div>
                             </div>
 
-                            {/* AI 生成图 - 右侧（底层） */}
-                            <div className="compare-right">
-                                <img src={lightboxImage} alt="AI 渲染" />
-                                <div className="compare-label compare-label-right">AI 渲染</div>
-                            </div>
-
-                            {/* 分割线 */}
-                            <div
-                                className="compare-slider"
-                                style={{ left: `${comparePosition}%` }}
-                                onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    const container = e.currentTarget.parentElement;
-                                    if (!container) return;
-
-                                    const handleMove = (moveEvent: MouseEvent) => {
-                                        const rect = container.getBoundingClientRect();
-                                        const x = moveEvent.clientX - rect.left;
-                                        const percent = Math.max(0, Math.min(100, (x / rect.width) * 100));
-                                        setComparePosition(percent);
-                                    };
-
-                                    const handleUp = () => {
-                                        document.removeEventListener('mousemove', handleMove);
-                                        document.removeEventListener('mouseup', handleUp);
-                                    };
-
-                                    document.addEventListener('mousemove', handleMove);
-                                    document.addEventListener('mouseup', handleUp);
-                                }}
-                            >
-                                <div className="compare-slider-handle">◀ ▶</div>
-                            </div>
+                            <button className="lightbox-close" onClick={() => setLightboxImage(null)}>×</button>
+                            <div className="compare-hint">← 拖动分割线对比 →</div>
                         </div>
-
-                        <button className="lightbox-close" onClick={() => setLightboxImage(null)}>×</button>
-                        <div className="compare-hint">← 拖动分割线对比 →</div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }
 

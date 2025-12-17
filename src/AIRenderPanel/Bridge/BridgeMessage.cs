@@ -280,5 +280,23 @@ namespace AIRenderPanel.Bridge
         public List<HistoryItem> Items { get; set; } = new();
     }
 
+    /// <summary>
+    /// 加载历史图片请求
+    /// </summary>
+    public class LoadHistoryImagesRequest
+    {
+        [JsonProperty("paths")]
+        public List<string> Paths { get; set; } = new();
+    }
+
+    /// <summary>
+    /// 历史图片响应
+    /// </summary>
+    public class HistoryImagesResponse
+    {
+        [JsonProperty("images")]
+        public List<string> Images { get; set; } = new();
+    }
+
     #endregion
 }

@@ -21,6 +21,7 @@ export interface BridgeCallbacks {
     onError?: (data: ErrorResponse) => void;
     onSettings?: (data: SettingsData) => void;
     onHistoryUpdate?: (data: HistoryUpdateResponse) => void;
+    onHistoryImages?: (data: { images: string[] }) => void;
 }
 
 /**
@@ -81,6 +82,9 @@ export function useBridge(callbacks: BridgeCallbacks) {
                     case 'historyUpdate':
                         callbacksRef.current.onHistoryUpdate?.(message.data as HistoryUpdateResponse);
                         break;
+                    case 'historyImages':
+                        callbacksRef.current.onHistoryImages?.(message.data as { images: string[] });
+                        break;
                     default:
                         console.warn('[Bridge] 未知消息类型:', message.type);
                 }
@@ -130,6 +134,10 @@ export function useBridge(callbacks: BridgeCallbacks) {
         postMessage('getHistory');
     }, [postMessage]);
 
+    const loadHistoryImages = useCallback((paths: string[]) => {
+        postMessage('loadHistoryImages', { paths });
+    }, [postMessage]);
+
     return {
         postMessage,
         listNamedViews,
@@ -140,5 +148,6 @@ export function useBridge(callbacks: BridgeCallbacks) {
         setSettings,
         openFolder,
         getHistory,
+        loadHistoryImages,
     };
 }
