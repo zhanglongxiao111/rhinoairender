@@ -283,9 +283,10 @@ namespace AIRenderPanel.Bridge
                     Percent = 80
                 });
 
-                // 保存图片
-                var savedPaths = _historyService.SaveGeneratedImages(
+                // 保存图片和原始截图
+                var (savedPaths, _) = _historyService.SaveGeneratedImages(
                     result.Images,
+                    imageBytes, // 原始截图
                     request.Prompt,
                     request.Source,
                     request.NamedView,
@@ -404,7 +405,20 @@ namespace AIRenderPanel.Bridge
                     }
                 }
 
-                _sendMessage("historyImages", new HistoryImagesResponse { Images = images });
+                // 加载截图
+                string? screenshot = null;
+                if (!string.IsNullOrEmpty(request.ScreenshotPath) && File.Exists(request.ScreenshotPath))
+                {
+                    var screenshotBytes = File.ReadAllBytes(request.ScreenshotPath);
+                    var screenshotBase64 = Convert.ToBase64String(screenshotBytes);
+                    screenshot = $"data:image/png;base64,{screenshotBase64}";
+                }
+
+                _sendMessage("historyImages", new HistoryImagesResponse 
+                { 
+                    Images = images,
+                    Screenshot = screenshot
+                });
             }
             catch (Exception ex)
             {

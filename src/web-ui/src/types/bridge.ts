@@ -92,6 +92,7 @@ export interface HistoryItem {
     thumbnails: string[]; // base64 缩略图
     paths: string[];
     provider: string;
+    screenshotPath?: string; // 原始截图路径
 }
 
 export interface HistoryUpdateResponse {

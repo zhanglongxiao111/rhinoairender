@@ -269,6 +269,9 @@ namespace AIRenderPanel.Bridge
 
         [JsonProperty("provider")]
         public string Provider { get; set; } = string.Empty;
+
+        [JsonProperty("screenshotPath")]
+        public string? ScreenshotPath { get; set; }
     }
 
     /// <summary>
@@ -287,6 +290,9 @@ namespace AIRenderPanel.Bridge
     {
         [JsonProperty("paths")]
         public List<string> Paths { get; set; } = new();
+
+        [JsonProperty("screenshotPath")]
+        public string? ScreenshotPath { get; set; }
     }
 
     /// <summary>
@@ -296,6 +302,9 @@ namespace AIRenderPanel.Bridge
     {
         [JsonProperty("images")]
         public List<string> Images { get; set; } = new();
+
+        [JsonProperty("screenshot")]
+        public string? Screenshot { get; set; }
     }
 
     #endregion

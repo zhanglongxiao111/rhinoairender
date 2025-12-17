@@ -21,7 +21,7 @@ export interface BridgeCallbacks {
     onError?: (data: ErrorResponse) => void;
     onSettings?: (data: SettingsData) => void;
     onHistoryUpdate?: (data: HistoryUpdateResponse) => void;
-    onHistoryImages?: (data: { images: string[] }) => void;
+    onHistoryImages?: (data: { images: string[], screenshot?: string }) => void;
 }
 
 /**
@@ -134,8 +134,8 @@ export function useBridge(callbacks: BridgeCallbacks) {
         postMessage('getHistory');
     }, [postMessage]);
 
-    const loadHistoryImages = useCallback((paths: string[]) => {
-        postMessage('loadHistoryImages', { paths });
+    const loadHistoryImages = useCallback((paths: string[], screenshotPath?: string) => {
+        postMessage('loadHistoryImages', { paths, screenshotPath });
     }, [postMessage]);
 
     return {

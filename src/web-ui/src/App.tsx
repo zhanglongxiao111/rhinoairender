@@ -127,9 +127,12 @@ function App() {
             setHistory(data.items);
         },
         onHistoryImages: (data) => {
-            // 收到原图后更新显示
+            // 收到原图和截图后更新显示
             if (data.images && data.images.length > 0) {
                 setGeneratedImages(data.images);
+            }
+            if (data.screenshot) {
+                setPreviewImage(data.screenshot);
             }
         },
     });
@@ -480,8 +483,14 @@ function App() {
                                 <div className="preview-caption">视口截图预览</div>
                             </div>
                         ) : generatedImages.length === 1 ? (
-                            // 单张生成图
-                            <img src={generatedImages[0]} alt="生成结果" className="preview-image" />
+                            // 单张生成图 - 点击可放大 AB 对比
+                            <div
+                                className="preview-single clickable"
+                                onClick={() => setLightboxImage(generatedImages[0])}
+                                title="点击放大 AB 对比"
+                            >
+                                <img src={generatedImages[0]} alt="生成结果" className="preview-image" />
+                            </div>
                         ) : (
                             // 多张生成图 - 网格显示（支持拖拽排序）
                             <div className={`preview-grid ${generatedImages.length <= 2 ? 'cols-2' : generatedImages.length <= 4 ? 'cols-2-2' : 'cols-3'}`}>
@@ -541,9 +550,9 @@ function App() {
                                     className={`history-item ${selectedHistoryItem?.id === item.id ? 'active' : ''}`}
                                     onClick={() => {
                                         setSelectedHistoryItem(item);
-                                        // 加载原图而非缩略图
+                                        // 加载原图和截图
                                         if (item.paths && item.paths.length > 0) {
-                                            bridge.loadHistoryImages(item.paths);
+                                            bridge.loadHistoryImages(item.paths, item.screenshotPath);
                                         }
                                     }}
                                 >

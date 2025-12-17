@@ -1189,6 +1189,14 @@ body {
   height: 100%;
 }
 
+.preview-single.clickable {
+  cursor: pointer;
+}
+
+.preview-single.clickable:hover {
+  opacity: 0.95;
+}
+
 .preview-grid-item {
   cursor: pointer;
   transition: transform 0.2s;

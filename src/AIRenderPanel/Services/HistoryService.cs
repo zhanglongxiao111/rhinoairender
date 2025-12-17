@@ -67,10 +67,11 @@ namespace AIRenderPanel.Services
         }
 
         /// <summary>
-        /// 保存生成的图片
+        /// 保存生成的图片和原始截图
         /// </summary>
-        public List<string> SaveGeneratedImages(
+        public (List<string> OutputPaths, string? ScreenshotPath) SaveGeneratedImages(
             List<byte[]> images,
+            byte[]? screenshot,
             string prompt,
             string source,
             string? namedView,
@@ -82,6 +83,7 @@ namespace AIRenderPanel.Services
             var timestamp = DateTime.Now;
             var sessionId = Guid.NewGuid().ToString("N")[..8];
             var savedPaths = new List<string>();
+            string? screenshotPath = null;
 
             // 创建会话目录
             var sessionDir = Path.Combine(
@@ -90,7 +92,14 @@ namespace AIRenderPanel.Services
             );
             Directory.CreateDirectory(sessionDir);
 
-            // 保存每张图片
+            // 保存原始截图
+            if (screenshot != null && screenshot.Length > 0)
+            {
+                screenshotPath = Path.Combine(sessionDir, "screenshot.png");
+                File.WriteAllBytes(screenshotPath, screenshot);
+            }
+
+            // 保存每张生成的图片
             for (int i = 0; i < images.Count; i++)
             {
                 var fileName = images.Count == 1 
@@ -112,12 +121,13 @@ namespace AIRenderPanel.Services
                 Width = width,
                 Height = height,
                 Provider = provider,
-                OutputPaths = savedPaths
+                OutputPaths = savedPaths,
+                ScreenshotPath = screenshotPath
             };
             var metadataPath = Path.Combine(sessionDir, "metadata.json");
             File.WriteAllText(metadataPath, JsonConvert.SerializeObject(metadata, Formatting.Indented));
 
-            return savedPaths;
+            return (savedPaths, screenshotPath);
         }
 
         /// <summary>
@@ -174,7 +184,8 @@ namespace AIRenderPanel.Services
                         Height = metadata.Height,
                         Thumbnails = thumbnails,
                         Paths = metadata.OutputPaths,
-                        Provider = metadata.Provider
+                        Provider = metadata.Provider,
+                        ScreenshotPath = metadata.ScreenshotPath
                     });
                 }
                 catch
@@ -245,6 +256,7 @@ namespace AIRenderPanel.Services
             public int Height { get; set; }
             public string Provider { get; set; } = string.Empty;
             public List<string> OutputPaths { get; set; } = new();
+            public string? ScreenshotPath { get; set; }
         }
     }
 }
