@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Pencil, Type, Trash2, Check, X, Undo, Eraser } from 'lucide-react';
+import { Pencil, Type, Trash2, Check, X, Undo, Eraser, Plus, Minus } from 'lucide-react';
 
 interface AnnotationEditorProps {
     imageUrl: string;
@@ -41,6 +41,9 @@ const COLORS = [
     { name: '黑色', value: '#000000' },
 ];
 
+// 字体大小预设
+const FONT_SIZES = [12, 16, 20, 24, 32, 48];
+
 export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEditorProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const imageRef = useRef<HTMLImageElement | null>(null);
@@ -49,6 +52,7 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
     const [tool, setTool] = useState<Tool>('pen');
     const [currentColor, setCurrentColor] = useState('#F04E30');
     const [eraserMode, setEraserMode] = useState<EraserMode>('stroke');
+    const [currentFontSize, setCurrentFontSize] = useState(24);
 
     // 绘图状态
     const [isDrawing, setIsDrawing] = useState(false);
@@ -65,12 +69,29 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
     const [imageLoaded, setImageLoaded] = useState(false);
     const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
 
+    // 显示尺寸（用于坐标转换）
+    const [displaySize, setDisplaySize] = useState({ width: 800, height: 600 });
+
     const penWidth = 3;
-    const eraserWidth = 20;
-    const fontSize = 18;
 
     // 生成唯一ID
     const generateId = () => Math.random().toString(36).substr(2, 9);
+
+    // 计算显示尺寸
+    const calculateDisplaySize = useCallback(() => {
+        const maxWidth = 800;
+        const maxHeight = 600;
+
+        if (imageSize.width === 0 || imageSize.height === 0) {
+            return { width: maxWidth, height: maxHeight };
+        }
+
+        const ratio = Math.min(maxWidth / imageSize.width, maxHeight / imageSize.height, 1);
+        return {
+            width: Math.round(imageSize.width * ratio),
+            height: Math.round(imageSize.height * ratio)
+        };
+    }, [imageSize]);
 
     // 加载背景图片
     useEffect(() => {
@@ -83,7 +104,17 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
         img.src = imageUrl;
     }, [imageUrl]);
 
-    // 绘制Canvas
+    // 更新显示尺寸
+    useEffect(() => {
+        if (imageLoaded) {
+            setDisplaySize(calculateDisplaySize());
+        }
+    }, [imageLoaded, calculateDisplaySize]);
+
+    // 缩放比例
+    const scale = imageSize.width > 0 ? displaySize.width / imageSize.width : 1;
+
+    // 绘制Canvas（不包含正在编辑的文字）
     const redrawCanvas = useCallback(() => {
         const canvas = canvasRef.current;
         const img = imageRef.current;
@@ -127,23 +158,25 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
             ctx.stroke();
         }
 
-        // 绘制文字标注（不带背景）
+        // 绘制文字标注（排除正在编辑的）
         textAnnotations.forEach(annotation => {
+            if (annotation.id === editingTextId) return; // 跳过正在编辑的文字
+
             ctx.font = `bold ${annotation.fontSize}px Arial`;
             ctx.fillStyle = annotation.color;
             // 添加描边使文字在任何背景下都可见
-            ctx.strokeStyle = annotation.color === '#FFFFFF' ? '#000000' : '#FFFFFF';
+            ctx.strokeStyle = annotation.color === '#000000' ? '#FFFFFF' : '#000000';
             ctx.lineWidth = 2;
             ctx.strokeText(annotation.text, annotation.x, annotation.y);
             ctx.fillText(annotation.text, annotation.x, annotation.y);
         });
-    }, [imageLoaded, paths, currentPath, textAnnotations, currentColor, tool]);
+    }, [imageLoaded, paths, currentPath, textAnnotations, currentColor, tool, editingTextId]);
 
     useEffect(() => {
         redrawCanvas();
     }, [redrawCanvas]);
 
-    // 获取画布坐标
+    // 获取画布坐标（从显示坐标转换为实际坐标）
     const getCanvasCoordinates = (e: React.MouseEvent<HTMLCanvasElement>): Point => {
         const canvas = canvasRef.current;
         if (!canvas) return { x: 0, y: 0 };
@@ -153,12 +186,12 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
         const scaleY = canvas.height / rect.height;
 
         return {
-            x: (e.clientX - rect.left) * scaleX,
-            y: (e.clientY - rect.top) * scaleY
+            x: Math.round((e.clientX - rect.left) * scaleX),
+            y: Math.round((e.clientY - rect.top) * scaleY)
         };
     };
 
-    // 检查点是否在文字上
+    // 检查点是否在文字上（使用画布坐标）
     const findTextAtPoint = (point: Point): TextAnnotation | null => {
         const canvas = canvasRef.current;
         if (!canvas) return null;
@@ -166,26 +199,27 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
         const ctx = canvas.getContext('2d');
         if (!ctx) return null;
 
-        // 从后往前检查（后添加的在上面）
         for (let i = textAnnotations.length - 1; i >= 0; i--) {
             const annotation = textAnnotations[i];
             ctx.font = `bold ${annotation.fontSize}px Arial`;
             const metrics = ctx.measureText(annotation.text);
             const height = annotation.fontSize;
 
-            if (point.x >= annotation.x &&
-                point.x <= annotation.x + metrics.width &&
-                point.y >= annotation.y - height &&
-                point.y <= annotation.y) {
+            // 扩大点击区域
+            const padding = 5;
+            if (point.x >= annotation.x - padding &&
+                point.x <= annotation.x + metrics.width + padding &&
+                point.y >= annotation.y - height - padding &&
+                point.y <= annotation.y + padding) {
                 return annotation;
             }
         }
         return null;
     };
 
-    // 检查点是否在路径上
+    // 检查点是否在路径上（使用画布坐标）
     const findPathAtPoint = (point: Point): DrawPath | null => {
-        const threshold = 10;
+        const threshold = 15; // 增大检测范围
 
         for (let i = paths.length - 1; i >= 0; i--) {
             const path = paths[i];
@@ -207,33 +241,58 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
             setIsDrawing(true);
             setCurrentPath([point]);
         } else if (tool === 'text') {
+            // 先确认之前的文字编辑
+            if (textPosition && textInput.trim()) {
+                confirmTextEdit();
+            }
+
             // 检查是否点击了现有文字
             const existingText = findTextAtPoint(point);
             if (existingText) {
                 setEditingTextId(existingText.id);
                 setTextInput(existingText.text);
                 setTextPosition({ x: existingText.x, y: existingText.y });
+                setCurrentFontSize(existingText.fontSize);
+                setCurrentColor(existingText.color);
             } else {
                 setEditingTextId(null);
                 setTextInput('');
                 setTextPosition(point);
             }
         } else if (tool === 'eraser') {
-            if (eraserMode === 'stroke') {
-                // 按笔画擦除
-                const pathToRemove = findPathAtPoint(point);
-                if (pathToRemove) {
-                    setPaths(prev => prev.filter(p => p.id !== pathToRemove.id));
-                }
-                // 也检查文字
-                const textToRemove = findTextAtPoint(point);
-                if (textToRemove) {
-                    setTextAnnotations(prev => prev.filter(t => t.id !== textToRemove.id));
-                }
-            } else {
-                // 像素擦除 - 开始擦除路径
-                setIsDrawing(true);
-                setCurrentPath([point]);
+            handleErase(point);
+        }
+    };
+
+    // 橡皮擦处理
+    const handleErase = (point: Point) => {
+        if (eraserMode === 'stroke') {
+            // 按笔画擦除 - 删除整条路径或文字
+            const pathToRemove = findPathAtPoint(point);
+            if (pathToRemove) {
+                setPaths(prev => prev.filter(p => p.id !== pathToRemove.id));
+                return;
+            }
+            const textToRemove = findTextAtPoint(point);
+            if (textToRemove) {
+                setTextAnnotations(prev => prev.filter(t => t.id !== textToRemove.id));
+            }
+        } else {
+            // 像素擦除 - 直接在canvas上用背景图覆盖
+            const canvas = canvasRef.current;
+            const ctx = canvas?.getContext('2d');
+            const img = imageRef.current;
+            if (ctx && img && canvas) {
+                const eraserRadius = 15;
+                // 保存当前状态
+                ctx.save();
+                // 创建圆形裁剪区域
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, eraserRadius, 0, Math.PI * 2);
+                ctx.clip();
+                // 绘制背景图片到裁剪区域
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                ctx.restore();
             }
         }
     };
@@ -246,19 +305,7 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
         if (tool === 'pen') {
             setCurrentPath(prev => [...prev, point]);
         } else if (tool === 'eraser' && eraserMode === 'pixel') {
-            // 像素擦除 - 用背景色绘制
-            const canvas = canvasRef.current;
-            const ctx = canvas?.getContext('2d');
-            if (ctx && imageRef.current) {
-                // 直接在canvas上用背景图擦除
-                ctx.save();
-                ctx.beginPath();
-                ctx.arc(point.x, point.y, eraserWidth / 2, 0, Math.PI * 2);
-                ctx.clip();
-                ctx.drawImage(imageRef.current, 0, 0, canvas!.width, canvas!.height);
-                ctx.restore();
-            }
-            setCurrentPath(prev => [...prev, point]);
+            handleErase(point);
         }
     };
 
@@ -275,12 +322,10 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
         setCurrentPath([]);
     };
 
-    // 添加或更新文字
-    const handleAddText = () => {
+    // 确认文字编辑
+    const confirmTextEdit = () => {
         if (!textPosition || !textInput.trim()) {
-            setTextPosition(null);
-            setTextInput('');
-            setEditingTextId(null);
+            cancelTextEdit();
             return;
         }
 
@@ -288,7 +333,7 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
             // 更新现有文字
             setTextAnnotations(prev => prev.map(t =>
                 t.id === editingTextId
-                    ? { ...t, text: textInput, color: currentColor }
+                    ? { ...t, text: textInput, color: currentColor, fontSize: currentFontSize }
                     : t
             ));
         } else {
@@ -299,16 +344,28 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
                 y: textPosition.y,
                 text: textInput,
                 color: currentColor,
-                fontSize: fontSize
+                fontSize: currentFontSize
             }]);
         }
 
+        cancelTextEdit();
+    };
+
+    // 取消文字编辑
+    const cancelTextEdit = () => {
         setTextInput('');
         setTextPosition(null);
         setEditingTextId(null);
     };
 
-    // 撤销最后操作
+    // 调整字体大小
+    const adjustFontSize = (delta: number) => {
+        const currentIndex = FONT_SIZES.indexOf(currentFontSize);
+        const newIndex = Math.max(0, Math.min(FONT_SIZES.length - 1, currentIndex + delta));
+        setCurrentFontSize(FONT_SIZES[newIndex]);
+    };
+
+    // 撤销
     const handleUndo = () => {
         if (paths.length > 0) {
             setPaths(prev => prev.slice(0, -1));
@@ -322,43 +379,41 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
         setPaths([]);
         setTextAnnotations([]);
         setCurrentPath([]);
-        setTextPosition(null);
-        setTextInput('');
-        setEditingTextId(null);
+        cancelTextEdit();
     };
 
     // 应用标注
     const handleApply = () => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
+        // 先确认当前编辑的文字
+        if (textPosition && textInput.trim()) {
+            confirmTextEdit();
+        }
 
-        // 确保重绘一次（不包含编辑中的文本框）
-        setTextPosition(null);
-        setEditingTextId(null);
-
+        // 等待重绘完成后导出
         setTimeout(() => {
-            const dataUrl = canvas.toDataURL('image/png');
-            onApply(dataUrl);
+            const canvas = canvasRef.current;
+            if (!canvas) return;
+
+            // 强制重绘一次确保所有内容都绘制好
+            redrawCanvas();
+
+            setTimeout(() => {
+                const dataUrl = canvas.toDataURL('image/png');
+                onApply(dataUrl);
+            }, 50);
         }, 50);
     };
 
-    // 计算显示尺寸
-    const getDisplaySize = () => {
-        const maxWidth = 800;
-        const maxHeight = 600;
-
-        if (imageSize.width === 0 || imageSize.height === 0) {
-            return { width: maxWidth, height: maxHeight };
-        }
-
-        const ratio = Math.min(maxWidth / imageSize.width, maxHeight / imageSize.height);
+    // 计算文字输入框在显示坐标系中的位置
+    const getTextInputPosition = () => {
+        if (!textPosition) return { left: 0, top: 0 };
         return {
-            width: imageSize.width * ratio,
-            height: imageSize.height * ratio
+            left: textPosition.x * scale,
+            top: textPosition.y * scale
         };
     };
 
-    const displaySize = getDisplaySize();
+    const inputPos = getTextInputPosition();
 
     return (
         <div className="annotation-editor-overlay">
@@ -369,7 +424,7 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
                         {/* 工具按钮 */}
                         <button
                             className={`annotation-tool-btn ${tool === 'pen' ? 'active' : ''}`}
-                            onClick={() => setTool('pen')}
+                            onClick={() => { setTool('pen'); cancelTextEdit(); }}
                             title="画笔工具"
                         >
                             <Pencil size={18} />
@@ -377,34 +432,53 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
                         <button
                             className={`annotation-tool-btn ${tool === 'text' ? 'active' : ''}`}
                             onClick={() => setTool('text')}
-                            title="文字工具 (点击已有文字可编辑)"
+                            title="文字工具"
                         >
                             <Type size={18} />
                         </button>
                         <button
                             className={`annotation-tool-btn ${tool === 'eraser' ? 'active' : ''}`}
-                            onClick={() => setTool('eraser')}
+                            onClick={() => { setTool('eraser'); cancelTextEdit(); }}
                             title="橡皮擦"
                         >
                             <Eraser size={18} />
                         </button>
 
-                        {/* 橡皮擦模式选择 */}
+                        {/* 橡皮擦模式 */}
                         {tool === 'eraser' && (
                             <div className="annotation-eraser-modes">
                                 <button
                                     className={`annotation-mode-btn ${eraserMode === 'stroke' ? 'active' : ''}`}
                                     onClick={() => setEraserMode('stroke')}
-                                    title="按笔画擦除"
                                 >
                                     笔画
                                 </button>
                                 <button
                                     className={`annotation-mode-btn ${eraserMode === 'pixel' ? 'active' : ''}`}
                                     onClick={() => setEraserMode('pixel')}
-                                    title="按像素擦除"
                                 >
                                     像素
+                                </button>
+                            </div>
+                        )}
+
+                        {/* 字体大小控制 */}
+                        {tool === 'text' && (
+                            <div className="annotation-font-size">
+                                <button
+                                    className="annotation-size-btn"
+                                    onClick={() => adjustFontSize(-1)}
+                                    disabled={currentFontSize === FONT_SIZES[0]}
+                                >
+                                    <Minus size={14} />
+                                </button>
+                                <span className="annotation-size-value">{currentFontSize}px</span>
+                                <button
+                                    className="annotation-size-btn"
+                                    onClick={() => adjustFontSize(1)}
+                                    disabled={currentFontSize === FONT_SIZES[FONT_SIZES.length - 1]}
+                                >
+                                    <Plus size={14} />
                                 </button>
                             </div>
                         )}
@@ -447,7 +521,7 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
                             <X size={16} /> 取消
                         </button>
                         <button className="annotation-btn-apply" onClick={handleApply}>
-                            <Check size={16} /> 应用标注
+                            <Check size={16} /> 应用
                         </button>
                     </div>
                 </div>
@@ -469,41 +543,52 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
                         onMouseLeave={handleMouseUp}
                     />
 
-                    {/* 文字输入框（不在canvas内，纯UI元素） */}
+                    {/* 所见即所得的文字输入框 */}
                     {textPosition && (
                         <div
-                            className="annotation-text-input-container"
+                            className="annotation-text-wysiwyg"
                             style={{
-                                left: (textPosition.x / (imageSize.width || 800)) * displaySize.width,
-                                top: (textPosition.y / (imageSize.height || 600)) * displaySize.height
+                                left: inputPos.left,
+                                top: inputPos.top,
+                                transform: 'translateY(-100%)'
                             }}
                         >
                             <input
                                 type="text"
-                                className="annotation-text-input"
                                 value={textInput}
                                 onChange={(e) => setTextInput(e.target.value)}
                                 onKeyDown={(e) => {
-                                    if (e.key === 'Enter') handleAddText();
-                                    if (e.key === 'Escape') {
-                                        setTextPosition(null);
-                                        setTextInput('');
-                                        setEditingTextId(null);
-                                    }
+                                    if (e.key === 'Enter') confirmTextEdit();
+                                    if (e.key === 'Escape') cancelTextEdit();
                                 }}
-                                placeholder={editingTextId ? "编辑文字..." : "输入文字后按 Enter"}
+                                placeholder="输入文字..."
                                 autoFocus
-                                style={{ color: currentColor, borderColor: currentColor }}
+                                style={{
+                                    color: currentColor,
+                                    fontSize: `${currentFontSize * scale}px`,
+                                    fontWeight: 'bold',
+                                    textShadow: currentColor === '#000000'
+                                        ? '1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff'
+                                        : '1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000'
+                                }}
                             />
+                            <div className="annotation-text-actions">
+                                <button onClick={confirmTextEdit} title="确认 (Enter)">
+                                    <Check size={14} />
+                                </button>
+                                <button onClick={cancelTextEdit} title="取消 (Esc)">
+                                    <X size={14} />
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>
 
                 {/* 提示 */}
                 <div className="annotation-hint">
-                    {tool === 'pen' && '点击拖动绘制线条'}
-                    {tool === 'text' && '点击空白处添加文字，点击已有文字可编辑'}
-                    {tool === 'eraser' && (eraserMode === 'stroke' ? '点击笔画或文字删除' : '拖动擦除像素')}
+                    {tool === 'pen' && '拖动绘制线条'}
+                    {tool === 'text' && (textPosition ? '输入文字，Enter确认，Esc取消' : '点击添加文字，点击已有文字可编辑')}
+                    {tool === 'eraser' && (eraserMode === 'stroke' ? '点击删除整条线或文字' : '拖动擦除')}
                 </div>
             </div>
         </div>
