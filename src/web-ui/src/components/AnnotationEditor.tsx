@@ -124,9 +124,21 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
     const [draggingTextId, setDraggingTextId] = useState<string | null>(null);
     const [dragOffset] = useState({ x: 0, y: 0 });
 
-    // 画布尺寸
-    const canvasWidth = 900;
-    const canvasHeight = 600;
+    // 画布尺寸 - 动态计算
+    const [canvasSize, setCanvasSize] = useState({ width: 900, height: 600 });
+
+    // 动态调整画布尺寸
+    useEffect(() => {
+        const updateSize = () => {
+            // 使用窗口尺寸，留出工具栏和边距
+            const width = Math.max(800, window.innerWidth - 80);
+            const height = Math.max(500, window.innerHeight - 180);
+            setCanvasSize({ width, height });
+        };
+        updateSize();
+        window.addEventListener('resize', updateSize);
+        return () => window.removeEventListener('resize', updateSize);
+    }, []);
 
     // 加载图片
     useEffect(() => {
@@ -145,14 +157,14 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
             imageRef.current = img;
             imageLoadedRef.current = true;
             // 自动缩放以适应画布
-            const scaleX = (canvasWidth - 40) / img.width;
-            const scaleY = (canvasHeight - 40) / img.height;
+            const scaleX = (canvasSize.width - 40) / img.width;
+            const scaleY = (canvasSize.height - 40) / img.height;
             const autoScale = Math.min(scaleX, scaleY, 1);
             setScale(autoScale);
             // 居中
             setOffset({
-                x: (canvasWidth - img.width * autoScale) / 2,
-                y: (canvasHeight - img.height * autoScale) / 2
+                x: (canvasSize.width - img.width * autoScale) / 2,
+                y: (canvasSize.height - img.height * autoScale) / 2
             });
             setLoadingState('loaded');
         };
@@ -480,7 +492,7 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
                             </button>
                         </div>
                     </div>
-                    <div className="annotation-canvas-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: canvasWidth, height: canvasHeight }}>
+                    <div className="annotation-canvas-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: canvasSize.width, height: canvasSize.height }}>
                         <div style={{ color: 'var(--color-text-secondary)', textAlign: 'center' }}>
                             正在加载图片...
                         </div>
@@ -505,7 +517,7 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
                             </button>
                         </div>
                     </div>
-                    <div className="annotation-canvas-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: canvasWidth, height: canvasHeight }}>
+                    <div className="annotation-canvas-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: canvasSize.width, height: canvasSize.height }}>
                         <div style={{ color: 'var(--color-text-secondary)', textAlign: 'center' }}>
                             <p>{errorMessage}</p>
                             <button className="annotation-btn-cancel" onClick={onCancel} style={{ marginTop: 16 }}>
@@ -630,11 +642,11 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
                 </div>
 
                 {/* 画布容器 */}
-                <div className="annotation-canvas-container" ref={containerRef} style={{ position: 'relative' }}>
+                <div className="annotation-canvas-container" ref={containerRef} style={{ position: 'relative', flex: 1 }}>
                     <canvas
                         ref={canvasRef}
-                        width={canvasWidth}
-                        height={canvasHeight}
+                        width={canvasSize.width}
+                        height={canvasSize.height}
                         onMouseDown={handleMouseDown}
                         onMouseMove={handleMouseMove}
                         onMouseUp={handleMouseUp}
@@ -652,8 +664,11 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
                         <div
                             className="annotation-text-overlay"
                             style={{
+                                position: 'absolute',
                                 left: textInputPos.left,
-                                top: textInputPos.top
+                                top: textInputPos.top,
+                                zIndex: 1000,
+                                pointerEvents: 'auto'
                             }}
                         >
                             <input
@@ -661,6 +676,7 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
                                 value={textInputValue}
                                 onChange={(e) => setTextInputValue(e.target.value)}
                                 onKeyDown={(e) => {
+                                    e.stopPropagation();
                                     if (e.key === 'Enter') confirmTextInput();
                                     if (e.key === 'Escape') {
                                         setEditingText(null);
@@ -672,8 +688,14 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
                                 autoFocus
                                 style={{
                                     color: currentColor,
-                                    fontSize: currentFontSize * scale,
-                                    fontWeight: 'bold'
+                                    fontSize: Math.max(16, currentFontSize * scale),
+                                    fontWeight: 'bold',
+                                    background: 'rgba(0,0,0,0.7)',
+                                    border: '2px solid ' + currentColor,
+                                    borderRadius: '4px',
+                                    padding: '4px 8px',
+                                    minWidth: '150px',
+                                    outline: 'none'
                                 }}
                             />
                         </div>
