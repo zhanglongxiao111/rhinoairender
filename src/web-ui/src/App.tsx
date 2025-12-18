@@ -44,6 +44,46 @@ const LONG_EDGE_OPTIONS = [
     { value: 3840, label: '3840px', desc: '4K' },
 ] as const;
 
+// 诙谐加载消息（建筑师幽默版）
+const WITTY_MESSAGES = {
+    start: [
+        "正在唤醒沉睡的 GPU...",
+        "显卡风扇已起飞...",
+        "正在连接到灵感矩阵...",
+        "正在与 Gemini Pro 建立神经连接...",
+        "载入建筑几何体数据...",
+    ],
+    waiting: [
+        "正在教 AI 什么是'五彩斑斓的黑'...",
+        "正在跟柯布西耶探讨光影...",
+        "别催了，正在一块砖一块砖地砌...",
+        "正在计算空气中尘埃的丁达尔效应...",
+        "正在给混凝土表面添加沧桑感...",
+        "AI 正在思考：这是窗户还是门？...",
+        "正在渲染那个'五分钟后就要'的方案...",
+        "正在把'感觉不对'转化为像素...",
+        "正在模拟甲方满意的眼神...",
+        "正在寻找丢失的光子...",
+        "正在阅读《建筑十书》...",
+        "正在模拟苏黎世的阴雨天光线...",
+        "正在对齐每一个像素的网格...",
+        "慢工出细活，AI 也是...",
+    ],
+    progress: [
+        "正在上传几何体数据... 24%",
+        "正在进行光线追踪降噪... 56%",
+        "正在细化材质纹理... 78%",
+        "最终像素光栅化... 89%",
+        "正在进行最后的色彩校正... 99%",
+    ],
+};
+
+// 获取随机诙谐消息
+const getWittyMessage = (category: keyof typeof WITTY_MESSAGES): string => {
+    const messages = WITTY_MESSAGES[category];
+    return messages[Math.floor(Math.random() * messages.length)];
+};
+
 function App() {
     // 状态
     const [status, setStatus] = useState<AppStatus>('idle');
@@ -74,6 +114,12 @@ function App() {
     const [lightboxImage, setLightboxImage] = useState<string | null>(null); // Lightbox 放大图片
     const [comparePosition, setComparePosition] = useState(50); // AB 对比滑块位置 (0-100)
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null); // 拖拽排序
+    const [historyView, setHistoryView] = useState<'list' | 'masonry'>('list'); // 历史面板视图
+    const [wittyMessage, setWittyMessage] = useState(''); // 诙谐加载消息
+    const [generateStartTime, setGenerateStartTime] = useState<number | null>(null); // 生成开始时间
+    const [elapsedTime, setElapsedTime] = useState('00:00.00'); // 已用时间显示
+    const [isDarkMode, setIsDarkMode] = useState(true); // 主题模式
+    const [canvasView, setCanvasView] = useState<'render' | 'source' | 'compare'>('render'); // 画布视图模式
     const [settings, setSettings] = useState<SettingsData>({
         outputMode: 'auto',
         outputFolder: '',
@@ -163,6 +209,38 @@ function App() {
         return () => clearTimeout(timer);
     }, []);
 
+    // 生成计时器效果
+    useEffect(() => {
+        if (status !== 'generating' || !generateStartTime) return;
+
+        const timerInterval = setInterval(() => {
+            const elapsed = Date.now() - generateStartTime;
+            const seconds = Math.floor(elapsed / 1000);
+            const ms = Math.floor((elapsed % 1000) / 10);
+            setElapsedTime(`00:${seconds.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`);
+        }, 50);
+
+        return () => clearInterval(timerInterval);
+    }, [status, generateStartTime]);
+
+    // 诙谐消息轮换效果
+    useEffect(() => {
+        if (status !== 'generating') return;
+
+        const messageInterval = setInterval(() => {
+            const r = Math.random();
+            if (r > 0.7) {
+                // 30% 概率显示进度消息
+                setWittyMessage(`>> ${getWittyMessage('progress')}`);
+            } else {
+                // 70% 概率显示等待消息
+                setWittyMessage(getWittyMessage('waiting'));
+            }
+        }, 2500);
+
+        return () => clearInterval(messageInterval);
+    }, [status]);
+
     // 截图预览 - 使用 longEdge 和 aspectRatio
     const handleCapturePreview = useCallback(() => {
         setStatus('capturing');
@@ -189,6 +267,11 @@ function App() {
         setStatusMessage('正在生成...');
         setProgress(0);
         setGeneratedImages([]);
+
+        // 启动计时器和诙谐消息
+        setGenerateStartTime(Date.now());
+        setWittyMessage(getWittyMessage('start'));
+        setElapsedTime('00:00.00');
 
         // 传递所有参数，包括模式和对比度
         bridge.generate({
@@ -271,77 +354,73 @@ function App() {
     const isProcessing = status === 'generating' || status === 'capturing';
 
     return (
-        <div className="app">
-            {/* 顶部栏 */}
-            <header className="app-header">
-                <div className="app-title">
-                    <div className="app-title-icon" />
-                    <span>AI RENDER</span>
-                </div>
-                <div className="header-right">
-                    <div className="status-indicator">
-                        <span className={`status-dot ${isProcessing ? 'processing' : status === 'error' ? 'error' : ''}`} />
-                        <span>{statusMessage}</span>
-                    </div>
-                    <button
-                        className="btn btn-ghost btn-icon btn-sm"
-                        onClick={() => {
-                            if (document.fullscreenElement) {
-                                document.exitFullscreen();
-                            } else {
-                                document.documentElement.requestFullscreen();
-                            }
-                        }}
-                        title="全屏"
-                    >
-                        ⛶
-                    </button>
-                    <button
-                        className="btn btn-ghost btn-icon btn-sm"
-                        onClick={() => setShowSettings(true)}
-                        title="设置"
-                    >
-                        ⚙
-                    </button>
-                </div>
-            </header>
+        <div className={`app-swiss ${isDarkMode ? 'dark' : 'light'}`}>
+            {/* 三栏布局 */}
+            <div className="layout-swiss">
+                {/* ============ 左侧面板 ============ */}
+                <aside className="panel-left swiss-grid-r">
+                    {/* 头部 - Logo 和主题切换 */}
+                    <header className="panel-header swiss-grid-b">
+                        <div>
+                            <h1 className="type-h1 text-2xl">
+                                SA&amp;DAGA<br />ARCHITECTS
+                            </h1>
+                            <div className="header-badges">
+                                <span className="badge-outline">BETA</span>
+                                <span className="type-label">AI RENDER v2.0</span>
+                            </div>
+                        </div>
+                        <button
+                            className="btn-theme"
+                            onClick={() => setIsDarkMode(!isDarkMode)}
+                            title={isDarkMode ? '切换浅色模式' : '切换深色模式'}
+                        >
+                            {isDarkMode ? '☀' : '🌙'}
+                        </button>
+                    </header>
 
-            <div className="app-content">
-                {/* 控制面板 */}
-                <aside className="controls-panel">
-                    <div className="controls-header">
-                        <h2>参数设置</h2>
-                    </div>
-
-                    <div className="controls-body">
+                    {/* 控制区域 */}
+                    <div className="panel-body">
                         {/* 提示词 */}
-                        <div className="control-group">
-                            <label className="label">提示词</label>
+                        <div className="control-section swiss-grid-b">
+                            <div className="control-section-header">
+                                <label className="type-label accent">提示词 / Prompt</label>
+                                <span className="type-sub">CMD + ENTER</span>
+                            </div>
                             <textarea
-                                className="textarea"
-                                placeholder="描述你想要生成的图像效果..."
+                                className="textarea-swiss"
+                                placeholder="// 在此处输入建筑场景描述..."
                                 value={prompt}
                                 onChange={(e) => setPrompt(e.target.value)}
                             />
                         </div>
 
-                        {/* 截图来源 */}
-                        <div className="control-group">
-                            <label className="label">视图来源</label>
-                            <div className="segment-group">
-                                <div
-                                    className={`segment-option ${source === 'active' ? 'active' : ''}`}
+                        {/* 视图来源 */}
+                        <div className="control-section swiss-grid-b">
+                            <label className="type-label">视图来源 / Source</label>
+                            <div className="option-cards">
+                                <button
+                                    className={`option-card ${source === 'active' ? 'active' : ''}`}
                                     onClick={() => setSource('active')}
                                 >
-                                    活动视口
-                                </div>
-                                <div
-                                    className={`segment-option ${source === 'named' ? 'active' : ''}`}
+                                    当前视口
+                                    <span className="type-sub">Active Viewport</span>
+                                </button>
+                                <button
+                                    className={`option-card ${source === 'named' ? 'active' : ''}`}
                                     onClick={() => setSource('named')}
                                 >
                                     命名视图
-                                </div>
+                                    <span className="type-sub">Named View</span>
+                                </button>
                             </div>
+                            <button
+                                className="btn-capture"
+                                onClick={handleCapturePreview}
+                                disabled={isProcessing}
+                            >
+                                📷 截取当前视图预览 / Capture Preview
+                            </button>
                         </div>
 
                         {/* 命名视图选择 */}
@@ -431,19 +510,26 @@ function App() {
                             </div>
                         )}
 
-                        {/* 比例 */}
-                        <div className="control-group">
-                            <label className="label">画面比例</label>
-                            <div className="chip-group">
-                                {ASPECT_RATIOS.map((ratio) => (
-                                    <div
+                        {/* 比例 - 5列网格布局 */}
+                        <div className="control-section swiss-grid-b">
+                            <label className="type-label">画幅比例 / Aspect Ratio</label>
+                            <div className="aspect-ratio-grid">
+                                {ASPECT_RATIOS.filter(r => r.value !== '21:9').map((ratio) => (
+                                    <button
                                         key={ratio.value}
-                                        className={`chip ${aspectRatio === ratio.value ? 'active' : ''}`}
+                                        className={`aspect-ratio-box ${aspectRatio === ratio.value ? 'active' : ''}`}
                                         onClick={() => setAspectRatio(ratio.value)}
                                     >
-                                        {ratio.label}
-                                    </div>
+                                        <span>{ratio.label}</span>
+                                    </button>
                                 ))}
+                                {/* 21:9 占据整行 */}
+                                <button
+                                    className={`aspect-ratio-box aspect-ratio-wide ${aspectRatio === '21:9' ? 'active' : ''}`}
+                                    onClick={() => setAspectRatio('21:9')}
+                                >
+                                    <span>21:9 CINEMATIC</span>
+                                </button>
                             </div>
                         </div>
 
@@ -481,102 +567,177 @@ function App() {
                         </div>
                     </div>
 
-                    {/* 操作按钮 */}
-                    <div className="controls-footer">
+                    {/* 底部操作按钮 */}
+                    <div className="panel-footer swiss-grid-t">
                         <button
-                            className="btn btn-secondary"
-                            onClick={handleCapturePreview}
-                            disabled={isProcessing}
+                            className="btn-settings"
+                            onClick={() => setShowSettings(true)}
+                            title="设置"
                         >
-                            预览
+                            ⚙
                         </button>
                         <button
-                            className="btn btn-primary"
+                            className={`btn-render ${isProcessing ? 'loading' : ''}`}
                             onClick={handleGenerate}
                             disabled={isProcessing || !prompt.trim()}
                         >
-                            {isProcessing ? '生成中...' : '生成'}
-                        </button>
-                        <button
-                            className="btn btn-ghost btn-icon"
-                            onClick={() => setShowSettings(true)}
-                        >
-                            ⚙
+                            <span className="btn-render-text">
+                                {isProcessing ? '生成中 / Generating...' : '开始渲染 / Render'}
+                            </span>
+                            <span className="btn-render-icon">→</span>
+                            {isProcessing && <div className="btn-render-stripe loading-stripe" />}
                         </button>
                     </div>
                 </aside>
 
-                {/* 预览区域 */}
-                <main className="preview-panel">
-                    <div className="preview-toolbar">
-                        <div className="preview-toolbar-left">
-                            <span className="text-muted">{resolution} · {aspectRatio || 'AUTO'}</span>
-                            {generatedImages.length > 0 && (
-                                <span className="text-muted" style={{ marginLeft: 12 }}>
-                                    {generatedImages.length} 张图片
-                                </span>
-                            )}
+                {/* ============ 中央画布 ============ */}
+                <main className="panel-center">
+                    {/* 工具栏 */}
+                    <div className="canvas-toolbar swiss-grid-b">
+                        <div className="toolbar-left">
+                            <div className="toolbar-file">
+                                <span>📁</span>
+                                <span className="type-mono">PROJECT_RENDER.3DM</span>
+                            </div>
+                            <div className="toolbar-divider" />
+                            <div className="toolbar-status">
+                                <span className={`status-dot ${isProcessing ? 'processing' : ''}`}>●</span>
+                                <span>{isProcessing ? 'RENDERING' : 'READY'}</span>
+                            </div>
                         </div>
-                        <div className="preview-toolbar-right">
-                            {isProcessing && (
-                                <button className="btn btn-ghost btn-sm" onClick={handleCancel}>
-                                    取消
+                        <div className="toolbar-right">
+                            <div className="toolbar-tabs">
+                                <button
+                                    className={`toolbar-tab ${canvasView === 'render' ? 'active' : ''}`}
+                                    onClick={() => setCanvasView('render')}
+                                >
+                                    Render
                                 </button>
-                            )}
+                                <button
+                                    className={`toolbar-tab ${canvasView === 'source' ? 'active' : ''}`}
+                                    onClick={() => setCanvasView('source')}
+                                    disabled={!previewImage}
+                                >
+                                    Source
+                                </button>
+                                <button
+                                    className={`toolbar-tab ${canvasView === 'compare' ? 'active' : ''}`}
+                                    onClick={() => setCanvasView('compare')}
+                                    disabled={!previewImage || generatedImages.length === 0}
+                                    title="AB 对比"
+                                >
+                                    ⟷
+                                </button>
+                                {isProcessing && (
+                                    <button
+                                        className="toolbar-tab"
+                                        onClick={handleCancel}
+                                        style={{ color: 'var(--color-accent)' }}
+                                    >
+                                        Cancel
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
 
-                    <div className="preview-container">
-                        {/* 主预览区域 - 生成的图片 */}
-                        {generatedImages.length === 0 && !previewImage ? (
-                            <div className="preview-empty">
-                                <div className="preview-empty-icon">◎</div>
-                                <div className="preview-empty-text">
-                                    <div>输入提示词并点击「生成」</div>
-                                    <div>或点击「预览」查看当前视口截图</div>
-                                </div>
-                            </div>
-                        ) : generatedImages.length === 0 && previewImage ? (
-                            // 只有截图预览，没有生成图
-                            <div className="preview-single">
-                                <img src={previewImage} alt="视口截图" className="preview-image" />
-                                <div className="preview-caption">视口截图预览</div>
-                            </div>
-                        ) : generatedImages.length === 1 ? (
-                            // 单张生成图 - 点击可放大 AB 对比
-                            <div
-                                className="preview-single clickable"
-                                onClick={() => setLightboxImage(generatedImages[0])}
-                                title="点击放大 AB 对比"
-                            >
-                                <img src={generatedImages[0]} alt="生成结果" className="preview-image" />
-                            </div>
-                        ) : (
-                            // 多张生成图 - 网格显示（支持拖拽排序）
-                            <div className={`preview-grid ${generatedImages.length <= 2 ? 'cols-2' : generatedImages.length <= 4 ? 'cols-2-2' : 'cols-3'}`}>
-                                {generatedImages.map((img, index) => (
-                                    <div
-                                        key={`img-${index}-${img.slice(-20)}`}
-                                        className={`preview-grid-item ${draggedIndex === index ? 'dragging' : ''}`}
-                                        onClick={() => setLightboxImage(img)}
-                                        title="点击放大 / 拖拽排序"
-                                        draggable
-                                        onDragStart={() => handleDragStart(index)}
-                                        onDragOver={(e) => handleDragOver(e, index)}
-                                        onDragEnd={handleDragEnd}
-                                    >
-                                        <img src={img} alt={`结果 ${index + 1}`} draggable={false} />
-                                        <div className="preview-grid-index">{index + 1}</div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+                    {/* 画布容器 - 带网格背景 */}
+                    <div className="canvas-container bg-grid-pattern">
+                        <div className={`canvas-wrapper ${isProcessing ? 'animate-pulse-border' : ''}`}
+                            style={{ opacity: isProcessing ? 0.4 : 1 }}>
 
-                        {/* 左下角截图预览小窗口 - 仅在有生成图时显示 */}
-                        {previewImage && generatedImages.length > 0 && (
-                            <div className="preview-thumbnail">
-                                <div className="preview-thumbnail-label">参考图</div>
-                                <img src={previewImage} alt="参考截图" />
+                            {/* 根据 canvasView 显示不同内容 */}
+                            {canvasView === 'source' && previewImage ? (
+                                <>
+                                    <div className="canvas-label">Source Screenshot</div>
+                                    <img src={previewImage} alt="视口截图" className="preview-image" />
+                                </>
+                            ) : canvasView === 'compare' && previewImage && generatedImages.length > 0 ? (
+                                <>
+                                    <div className="canvas-label">AB Compare</div>
+                                    <div className="compare-container">
+                                        <div className="compare-layer compare-before">
+                                            <img src={previewImage} alt="原始截图" />
+                                        </div>
+                                        <div
+                                            className="compare-layer compare-after"
+                                            style={{ clipPath: `inset(0 ${100 - comparePosition}% 0 0)` }}
+                                        >
+                                            <img src={generatedImages[0]} alt="渲染结果" />
+                                        </div>
+                                        <input
+                                            type="range"
+                                            className="compare-slider"
+                                            min="0"
+                                            max="100"
+                                            value={comparePosition}
+                                            onChange={(e) => setComparePosition(Number(e.target.value))}
+                                        />
+                                        <div className="compare-labels">
+                                            <span>BEFORE</span>
+                                            <span>AFTER</span>
+                                        </div>
+                                    </div>
+                                </>
+                            ) : generatedImages.length === 0 && !previewImage ? (
+                                <div className="preview-empty">
+                                    <div className="preview-empty-icon">◎</div>
+                                    <div className="preview-empty-text">
+                                        <div>输入提示词并点击「生成」</div>
+                                        <div>或点击「截取预览」查看当前视口</div>
+                                    </div>
+                                </div>
+                            ) : generatedImages.length === 0 && previewImage ? (
+                                <>
+                                    <div className="canvas-label">Source Screenshot</div>
+                                    <img src={previewImage} alt="视口截图" className="preview-image" />
+                                </>
+                            ) : generatedImages.length === 1 ? (
+                                <>
+                                    <div className="canvas-label">AI Render Preview</div>
+                                    <img
+                                        src={generatedImages[0]}
+                                        alt="生成结果"
+                                        className="preview-image clickable"
+                                        onClick={() => setLightboxImage(generatedImages[0])}
+                                        title="点击放大"
+                                    />
+                                </>
+                            ) : (
+                                <>
+                                    <div className="canvas-label">AI Render Preview</div>
+                                    <div className={`preview-grid ${generatedImages.length <= 2 ? 'cols-2' : generatedImages.length <= 4 ? 'cols-2-2' : 'cols-3'}`}>
+                                        {generatedImages.map((img, index) => (
+                                            <div
+                                                key={`img-${index}-${img.slice(-20)}`}
+                                                className={`preview-grid-item ${draggedIndex === index ? 'dragging' : ''}`}
+                                                onClick={() => setLightboxImage(img)}
+                                                title="点击放大 / 拖拽排序"
+                                                draggable
+                                                onDragStart={() => handleDragStart(index)}
+                                                onDragOver={(e) => handleDragOver(e, index)}
+                                                onDragEnd={handleDragEnd}
+                                            >
+                                                <img src={img} alt={`结果 ${index + 1}`} draggable={false} />
+                                                <div className="preview-grid-index">{index + 1}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        {/* 诙谐加载状态叠加层 - 覆盖整个画布容器 */}
+                        {status === 'generating' && (
+                            <div className="status-overlay">
+                                <div className="status-overlay-box animate-fade-in-up">
+                                    <div className="status-timer">{elapsedTime}</div>
+                                    <div className="status-message">{wittyMessage || statusMessage}</div>
+                                    <div className="status-progress-bar">
+                                        <div className="status-progress-fill loading-stripe" />
+                                    </div>
+                                    <div className="status-engine">Gemini AI Processing</div>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -595,25 +756,74 @@ function App() {
                     )}
                 </main>
 
-                {/* 历史面板 */}
-                <aside className="history-panel">
-                    <div className="history-header">
-                        <span>历史记录</span>
-                        <button
-                            className={`btn btn-ghost btn-sm ${showFavoritesOnly ? 'active' : ''}`}
-                            onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
-                            title={showFavoritesOnly ? '显示全部' : '只显示收藏'}
-                            style={{ padding: '0 6px', fontSize: '14px' }}
-                        >
-                            {showFavoritesOnly ? '⭐' : '☆'}
-                        </button>
+                {/* ============ 右侧历史面板 ============ */}
+                <aside className="panel-right swiss-grid-l">
+                    <div className="panel-header-right swiss-grid-b">
+                        <div>
+                            <h2 className="type-h1 text-lg">SESSION<br />HISTORY</h2>
+                            <span className="type-label">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()}</span>
+                        </div>
+                        <div className="history-header-actions">
+                            <button
+                                className={`btn btn-ghost btn-sm ${historyView === 'list' ? 'active' : ''}`}
+                                onClick={() => setHistoryView('list')}
+                                title="列表视图"
+                                style={{ padding: '0 4px' }}
+                            >
+                                ☰
+                            </button>
+                            <button
+                                className={`btn btn-ghost btn-sm ${historyView === 'masonry' ? 'active' : ''}`}
+                                onClick={() => setHistoryView('masonry')}
+                                title="瀑布流视图"
+                                style={{ padding: '0 4px' }}
+                            >
+                                ▦
+                            </button>
+                            <button
+                                className={`btn btn-ghost btn-sm ${showFavoritesOnly ? 'active' : ''}`}
+                                onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                                title={showFavoritesOnly ? '显示全部' : '只显示收藏'}
+                                style={{ padding: '0 4px' }}
+                            >
+                                {showFavoritesOnly ? '⭐' : '☆'}
+                            </button>
+                        </div>
                     </div>
-                    <div className="history-list">
+                    <div className={`history-list ${historyView === 'masonry' ? 'masonry-wrapper' : ''}`}>
                         {history.filter(item => !showFavoritesOnly || item.isFavorite).length === 0 ? (
                             <div className="history-empty">
                                 <span>{showFavoritesOnly ? '暂无收藏' : '暂无记录'}</span>
                             </div>
+                        ) : historyView === 'masonry' ? (
+                            // 瀑布流视图 - 只显示图片，悬停显示时间
+                            history
+                                .filter(item => !showFavoritesOnly || item.isFavorite)
+                                .map((item) => (
+                                    <div
+                                        key={item.id}
+                                        className={`masonry-col history-masonry-item ${selectedHistoryItem?.id === item.id ? 'active' : ''}`}
+                                        onClick={() => {
+                                            setSelectedHistoryItem(item);
+                                            if (item.paths && item.paths.length > 0) {
+                                                bridge.loadHistoryImages(item.paths, item.screenshotPath);
+                                            }
+                                        }}
+                                        onDoubleClick={() => handleUseHistorySettings(item)}
+                                    >
+                                        {item.thumbnails.length > 0 && (
+                                            <img src={`data:image/png;base64,${item.thumbnails[0]}`} alt="" />
+                                        )}
+                                        <div className="history-masonry-overlay">
+                                            <span className="history-masonry-time">
+                                                {new Date(item.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+                                            </span>
+                                        </div>
+                                        {item.isFavorite && <span className="history-favorite-badge">⭐</span>}
+                                    </div>
+                                ))
                         ) : (
+                            // 列表视图
                             history
                                 .filter(item => !showFavoritesOnly || item.isFavorite)
                                 .map((item) => (
@@ -622,15 +832,11 @@ function App() {
                                         className={`history-item ${selectedHistoryItem?.id === item.id ? 'active' : ''}`}
                                         onClick={() => {
                                             setSelectedHistoryItem(item);
-                                            // 加载原图和截图
                                             if (item.paths && item.paths.length > 0) {
                                                 bridge.loadHistoryImages(item.paths, item.screenshotPath);
                                             }
                                         }}
-                                        onDoubleClick={() => {
-                                            // 双击填充提示词到输入框
-                                            handleUseHistorySettings(item);
-                                        }}
+                                        onDoubleClick={() => handleUseHistorySettings(item)}
                                         title="单击查看 · 双击使用此设置"
                                     >
                                         <div className="history-thumb">
