@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, lazy, Suspense } from 'react';
 import {
     Settings2,
     ScanEye,
@@ -19,7 +19,10 @@ import {
     Pencil
 } from 'lucide-react';
 import { useBridge } from './hooks/useBridge';
-import { AnnotationEditor } from './components/AnnotationEditor';
+
+// 动态导入标注编辑器（避免 konva 阻塞主应用加载）
+const AnnotationEditor = lazy(() => import('./components/AnnotationEditor'));
+
 import type {
     AppStatus,
     HistoryItem,
@@ -1210,14 +1213,16 @@ function App() {
 
             {/* 标注编辑器 */}
             {showAnnotationEditor && previewImage && (
-                <AnnotationEditor
-                    imageUrl={previewImage}
-                    onApply={(annotatedImageUrl) => {
-                        setPreviewImage(annotatedImageUrl);
-                        setShowAnnotationEditor(false);
-                    }}
-                    onCancel={() => setShowAnnotationEditor(false)}
-                />
+                <Suspense fallback={<div className="annotation-editor-overlay"><div style={{ color: 'white', textAlign: 'center', marginTop: '40vh' }}>加载标注编辑器...</div></div>}>
+                    <AnnotationEditor
+                        imageUrl={previewImage}
+                        onApply={(annotatedImageUrl) => {
+                            setPreviewImage(annotatedImageUrl);
+                            setShowAnnotationEditor(false);
+                        }}
+                        onCancel={() => setShowAnnotationEditor(false)}
+                    />
+                </Suspense>
             )}
         </div >
     );
