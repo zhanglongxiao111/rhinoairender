@@ -1816,12 +1816,11 @@ body {
 }
 
 .status-overlay-box {
-  background: rgba(18, 18, 18, 0.95);
-  backdrop-filter: blur(8px);
-  border: 1px solid var(--color-accent);
-  padding: var(--space-6);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #333;
+  padding: var(--space-5) var(--space-6);
   text-align: center;
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   min-width: 320px;
 }
 
@@ -1829,18 +1828,18 @@ body {
   font-family: var(--font-mono);
   font-size: var(--text-2xl);
   font-weight: var(--font-bold);
-  color: var(--color-accent);
+  color: #888;
+  /* 浅灰色 */
   margin-bottom: var(--space-2);
 }
 
 .status-message {
-  font-size: var(--text-sm);
-  font-weight: var(--font-bold);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
-  color: var(--color-text-primary);
+  font-size: var(--text-base);
+  font-weight: var(--font-medium);
+  color: #ff6b35;
+  /* 橙色 */
   margin-bottom: var(--space-2);
-  min-height: 20px;
+  min-height: 22px;
 }
 
 .status-progress-bar {
@@ -1863,7 +1862,8 @@ body {
   font-family: var(--font-mono);
   font-size: 10px;
   text-transform: uppercase;
-  color: var(--color-text-muted);
+  color: #aaa;
+  /* 浅灰 */
   margin-top: var(--space-2);
 }
 
