@@ -19,7 +19,7 @@ namespace AIRenderPanel.Providers
     {
         private readonly Func<string?> _getApiKey;
         private readonly Func<string?> _getProxyUrl;
-        private HttpClient _httpClient;
+        private HttpClient? _httpClient;  // 延迟初始化，避免启动崩溃
 
         public string Name => _useProMode ? "专业模式" : "快速模式";
         public bool RequiresApiKey => true;
@@ -47,52 +47,76 @@ namespace AIRenderPanel.Providers
         {
             _getApiKey = getApiKey;
             _getProxyUrl = getProxyUrl ?? (() => null);
-            _httpClient = CreateHttpClient();
+            // 不在构造函数中创建 HttpClient，避免代理设置错误导致崩溃
         }
 
         /// <summary>
-        /// 创建 HttpClient，根据代理设置配置网络
+        /// 获取 HttpClient（延迟初始化，带错误处理）
         /// </summary>
-        private HttpClient CreateHttpClient()
+        private HttpClient GetHttpClient()
         {
-            var proxyUrl = _getProxyUrl?.Invoke();
-            
-            // 优先使用环境变量中的代理设置
-            if (string.IsNullOrEmpty(proxyUrl))
+            if (_httpClient == null)
             {
-                proxyUrl = Environment.GetEnvironmentVariable("HTTP_PROXY") 
-                        ?? Environment.GetEnvironmentVariable("HTTPS_PROXY")
-                        ?? Environment.GetEnvironmentVariable("ALL_PROXY");
+                _httpClient = CreateHttpClientSafe();
             }
+            return _httpClient;
+        }
 
-            HttpClientHandler handler;
-            
-            if (!string.IsNullOrEmpty(proxyUrl))
+        /// <summary>
+        /// 创建 HttpClient，根据代理设置配置网络（带错误处理）
+        /// </summary>
+        private HttpClient CreateHttpClientSafe()
+        {
+            try
             {
-                // 使用指定的代理
-                RhinoApp.WriteLine($"[AI渲染] 使用代理: {proxyUrl}");
-                handler = new HttpClientHandler
+                var proxyUrl = _getProxyUrl?.Invoke();
+                
+                // 优先使用环境变量中的代理设置
+                if (string.IsNullOrEmpty(proxyUrl))
                 {
-                    Proxy = new WebProxy(proxyUrl),
-                    UseProxy = true
+                    proxyUrl = Environment.GetEnvironmentVariable("HTTP_PROXY") 
+                            ?? Environment.GetEnvironmentVariable("HTTPS_PROXY")
+                            ?? Environment.GetEnvironmentVariable("ALL_PROXY");
+                }
+
+                HttpClientHandler handler;
+                
+                if (!string.IsNullOrEmpty(proxyUrl))
+                {
+                    // 尝试解析代理 URL
+                    RhinoApp.WriteLine($"[AI渲染] 尝试使用代理: {proxyUrl}");
+                    handler = new HttpClientHandler
+                    {
+                        Proxy = new WebProxy(proxyUrl),
+                        UseProxy = true
+                    };
+                }
+                else
+                {
+                    // 强制使用系统代理（而非进程继承的设置）
+                    RhinoApp.WriteLine("[AI渲染] 使用系统代理设置");
+                    handler = new HttpClientHandler
+                    {
+                        UseProxy = true,
+                        Proxy = WebRequest.GetSystemWebProxy()
+                    };
+                    handler.Proxy.Credentials = CredentialCache.DefaultCredentials;
+                }
+
+                return new HttpClient(handler)
+                {
+                    Timeout = TimeSpan.FromMinutes(5)
                 };
             }
-            else
+            catch (UriFormatException ex)
             {
-                // 强制使用系统代理（而非进程继承的设置）
-                RhinoApp.WriteLine("[AI渲染] 使用系统代理设置");
-                handler = new HttpClientHandler
+                // 代理 URL 格式错误，降级为不使用代理
+                RhinoApp.WriteLine($"[AI渲染] 警告：代理地址格式错误 ({ex.Message})，已自动禁用代理");
+                return new HttpClient(new HttpClientHandler { UseProxy = false })
                 {
-                    UseProxy = true,
-                    Proxy = WebRequest.GetSystemWebProxy()
+                    Timeout = TimeSpan.FromMinutes(5)
                 };
-                handler.Proxy.Credentials = CredentialCache.DefaultCredentials;
             }
-
-            return new HttpClient(handler)
-            {
-                Timeout = TimeSpan.FromMinutes(5)
-            };
         }
 
         /// <summary>
@@ -100,8 +124,8 @@ namespace AIRenderPanel.Providers
         /// </summary>
         public void RefreshHttpClient()
         {
-            _httpClient.Dispose();
-            _httpClient = CreateHttpClient();
+            _httpClient?.Dispose();
+            _httpClient = CreateHttpClientSafe();
         }
 
         /// <summary>
@@ -310,7 +334,7 @@ namespace AIRenderPanel.Providers
                     RhinoApp.WriteLine($"[AI渲染] 尝试使用 {endpointName} 发送请求...");
                     
                     var content = new StringContent(requestBodyJson, Encoding.UTF8, "application/json");
-                    var response = await _httpClient.PostAsync(requestUrl, content, cancellationToken);
+                    var response = await GetHttpClient().PostAsync(requestUrl, content, cancellationToken);
                     var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
 
                     if (!response.IsSuccessStatusCode)
