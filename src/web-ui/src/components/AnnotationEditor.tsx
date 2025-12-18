@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, Component, ReactNode } from 'react';
 import { Stage, Layer, Line, Text, Image as KonvaImage } from 'react-konva';
 import Konva from 'konva';
-import { Pencil, Type, Trash2, Check, X, Undo, Eraser, ZoomIn, ZoomOut, Move } from 'lucide-react';
+import { Pencil, Type, Trash2, Check, X, Undo, Eraser, ZoomIn, ZoomOut, Move, AlertCircle } from 'lucide-react';
 
 interface AnnotationEditorProps {
     imageUrl: string;
@@ -27,6 +27,39 @@ interface TextItem {
     fontSize: number;
 }
 
+// 错误边界组件
+interface ErrorBoundaryState {
+    hasError: boolean;
+    error?: Error;
+}
+
+class ErrorBoundary extends Component<{ children: ReactNode; onError: () => void }, ErrorBoundaryState> {
+    constructor(props: { children: ReactNode; onError: () => void }) {
+        super(props);
+        this.state = { hasError: false };
+    }
+
+    static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+        return { hasError: true, error };
+    }
+
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="annotation-error">
+                    <AlertCircle size={48} />
+                    <h3>标注编辑器加载失败</h3>
+                    <p>{this.state.error?.message || '未知错误'}</p>
+                    <button onClick={this.props.onError} className="annotation-btn-cancel">
+                        <X size={16} /> 返回
+                    </button>
+                </div>
+            );
+        }
+        return this.props.children;
+    }
+}
+
 // 预设颜色
 const COLORS = [
     { name: '红色', value: '#F04E30' },
@@ -39,9 +72,11 @@ const COLORS = [
 
 const FONT_SIZES = [16, 24, 32, 48, 64];
 
-export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEditorProps) {
+function AnnotationEditorInner({ imageUrl, onApply, onCancel }: AnnotationEditorProps) {
     const stageRef = useRef<Konva.Stage>(null);
     const [image, setImage] = useState<HTMLImageElement | null>(null);
+    const [loadingState, setLoadingState] = useState<'loading' | 'loaded' | 'error'>('loading');
+    const [errorMessage, setErrorMessage] = useState('');
 
     // 工具状态
     const [tool, setTool] = useState<Tool>('pen');
@@ -65,13 +100,22 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
 
     // 显示尺寸
     const containerWidth = 900;
-    const containerHeight = 650;
+    const containerHeight = 600;
 
     // 加载图片
     useEffect(() => {
+        if (!imageUrl) {
+            setLoadingState('error');
+            setErrorMessage('没有图片可编辑');
+            return;
+        }
+
+        setLoadingState('loading');
         const img = new window.Image();
         img.crossOrigin = 'anonymous';
+
         img.onload = () => {
+            console.log('Image loaded:', img.width, 'x', img.height);
             setImage(img);
             // 自动缩放以适应容器
             const scaleX = (containerWidth - 40) / img.width;
@@ -83,8 +127,26 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
                 x: (containerWidth - img.width * autoScale) / 2,
                 y: (containerHeight - img.height * autoScale) / 2
             });
+            setLoadingState('loaded');
         };
+
+        img.onerror = (e) => {
+            console.error('Image load error:', e);
+            setLoadingState('error');
+            setErrorMessage('图片加载失败');
+        };
+
+        // 超时处理
+        const timeout = setTimeout(() => {
+            if (loadingState === 'loading') {
+                setLoadingState('error');
+                setErrorMessage('图片加载超时');
+            }
+        }, 10000);
+
         img.src = imageUrl;
+
+        return () => clearTimeout(timeout);
     }, [imageUrl]);
 
     // 生成唯一ID
@@ -303,6 +365,61 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
 
     const textInputPos = getTextInputScreenPosition();
 
+    // 加载中状态
+    if (loadingState === 'loading') {
+        return (
+            <div className="annotation-editor-overlay">
+                <div className="annotation-editor">
+                    <div className="annotation-toolbar">
+                        <div className="annotation-tools">
+                            <span style={{ color: 'var(--color-text-secondary)' }}>加载中...</span>
+                        </div>
+                        <div className="annotation-actions">
+                            <button className="annotation-btn-cancel" onClick={onCancel}>
+                                <X size={16} /> 取消
+                            </button>
+                        </div>
+                    </div>
+                    <div className="annotation-canvas-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <div style={{ color: 'var(--color-text-secondary)', textAlign: 'center' }}>
+                            <div className="loading-spinner" style={{ width: 40, height: 40, border: '3px solid var(--color-border)', borderTop: '3px solid var(--color-accent)', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
+                            正在加载图片...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // 错误状态
+    if (loadingState === 'error') {
+        return (
+            <div className="annotation-editor-overlay">
+                <div className="annotation-editor">
+                    <div className="annotation-toolbar">
+                        <div className="annotation-tools">
+                            <span style={{ color: 'var(--color-error)' }}>加载失败</span>
+                        </div>
+                        <div className="annotation-actions">
+                            <button className="annotation-btn-cancel" onClick={onCancel}>
+                                <X size={16} /> 返回
+                            </button>
+                        </div>
+                    </div>
+                    <div className="annotation-canvas-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <div style={{ color: 'var(--color-text-secondary)', textAlign: 'center' }}>
+                            <AlertCircle size={48} style={{ marginBottom: 16, color: 'var(--color-error)' }} />
+                            <p>{errorMessage}</p>
+                            <button className="annotation-btn-cancel" onClick={onCancel} style={{ marginTop: 16 }}>
+                                <X size={16} /> 返回
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="annotation-editor-overlay">
             <div className="annotation-editor">
@@ -415,7 +532,7 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
                 </div>
 
                 {/* Konva 画布 */}
-                <div className="annotation-canvas-container" style={{ position: 'relative' }}>
+                <div className="annotation-canvas-container" style={{ position: 'relative', background: '#1a1a1a' }}>
                     <Stage
                         ref={stageRef}
                         width={containerWidth}
@@ -534,6 +651,15 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
                 </div>
             </div>
         </div>
+    );
+}
+
+// 导出包装了错误边界的组件
+export function AnnotationEditor(props: AnnotationEditorProps) {
+    return (
+        <ErrorBoundary onError={props.onCancel}>
+            <AnnotationEditorInner {...props} />
+        </ErrorBoundary>
     );
 }
 
