@@ -803,7 +803,7 @@ function App() {
                                         </div>
                                     </div>
                                 </>
-                            ) : generatedImages.length === 0 && !previewImage ? (
+                            ) : generatedImages.length === 0 && !previewImage && status !== 'generating' ? (
                                 <div className="preview-empty">
                                     <div className="preview-empty-icon"><ScanEye size={32} /></div>
                                     <div className="preview-empty-text">
