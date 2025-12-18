@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Pencil, Type, Trash2, Check, X, Undo, Eraser, Plus, Minus } from 'lucide-react';
+import { Stage, Layer, Line, Text, Image as KonvaImage } from 'react-konva';
+import Konva from 'konva';
+import { Pencil, Type, Trash2, Check, X, Undo, Eraser, ZoomIn, ZoomOut, Move } from 'lucide-react';
 
 interface AnnotationEditorProps {
     imageUrl: string;
@@ -7,22 +9,16 @@ interface AnnotationEditorProps {
     onCancel: () => void;
 }
 
-type Tool = 'pen' | 'text' | 'eraser';
-type EraserMode = 'stroke' | 'pixel';
+type Tool = 'pen' | 'text' | 'eraser' | 'pan';
 
-interface Point {
-    x: number;
-    y: number;
-}
-
-interface DrawPath {
+interface DrawLine {
     id: string;
-    points: Point[];
+    points: number[];
     color: string;
-    width: number;
+    strokeWidth: number;
 }
 
-interface TextAnnotation {
+interface TextItem {
     id: string;
     x: number;
     y: number;
@@ -41,379 +37,271 @@ const COLORS = [
     { name: '黑色', value: '#000000' },
 ];
 
-// 字体大小预设
-const FONT_SIZES = [12, 16, 20, 24, 32, 48];
+const FONT_SIZES = [16, 24, 32, 48, 64];
 
 export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEditorProps) {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const imageRef = useRef<HTMLImageElement | null>(null);
+    const stageRef = useRef<Konva.Stage>(null);
+    const [image, setImage] = useState<HTMLImageElement | null>(null);
 
     // 工具状态
     const [tool, setTool] = useState<Tool>('pen');
     const [currentColor, setCurrentColor] = useState('#F04E30');
-    const [eraserMode, setEraserMode] = useState<EraserMode>('stroke');
-    const [currentFontSize, setCurrentFontSize] = useState(24);
+    const [currentFontSize, setCurrentFontSize] = useState(32);
+    const [strokeWidth] = useState(3);
 
-    // 绘图状态
+    // 缩放状态
+    const [scale, setScale] = useState(1);
+    const [position, setPosition] = useState({ x: 0, y: 0 });
+
+    // 绘图数据
+    const [lines, setLines] = useState<DrawLine[]>([]);
+    const [texts, setTexts] = useState<TextItem[]>([]);
     const [isDrawing, setIsDrawing] = useState(false);
-    const [paths, setPaths] = useState<DrawPath[]>([]);
-    const [currentPath, setCurrentPath] = useState<Point[]>([]);
-    const [textAnnotations, setTextAnnotations] = useState<TextAnnotation[]>([]);
+    const [currentLine, setCurrentLine] = useState<number[]>([]);
 
-    // 文字编辑状态
-    const [editingTextId, setEditingTextId] = useState<string | null>(null);
-    const [textInput, setTextInput] = useState('');
-    const [textPosition, setTextPosition] = useState<Point | null>(null);
+    // 文字编辑
+    const [editingText, setEditingText] = useState<{ id: string | null; x: number; y: number } | null>(null);
+    const [textInputValue, setTextInputValue] = useState('');
 
-    // 图片状态
-    const [imageLoaded, setImageLoaded] = useState(false);
-    const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
+    // 显示尺寸
+    const containerWidth = 900;
+    const containerHeight = 650;
 
-    // 显示尺寸（用于坐标转换）
-    const [displaySize, setDisplaySize] = useState({ width: 800, height: 600 });
-
-    const penWidth = 3;
-
-    // 生成唯一ID
-    const generateId = () => Math.random().toString(36).substr(2, 9);
-
-    // 计算显示尺寸
-    const calculateDisplaySize = useCallback(() => {
-        const maxWidth = 800;
-        const maxHeight = 600;
-
-        if (imageSize.width === 0 || imageSize.height === 0) {
-            return { width: maxWidth, height: maxHeight };
-        }
-
-        const ratio = Math.min(maxWidth / imageSize.width, maxHeight / imageSize.height, 1);
-        return {
-            width: Math.round(imageSize.width * ratio),
-            height: Math.round(imageSize.height * ratio)
-        };
-    }, [imageSize]);
-
-    // 加载背景图片
+    // 加载图片
     useEffect(() => {
-        const img = new Image();
+        const img = new window.Image();
+        img.crossOrigin = 'anonymous';
         img.onload = () => {
-            imageRef.current = img;
-            setImageSize({ width: img.width, height: img.height });
-            setImageLoaded(true);
+            setImage(img);
+            // 自动缩放以适应容器
+            const scaleX = (containerWidth - 40) / img.width;
+            const scaleY = (containerHeight - 40) / img.height;
+            const autoScale = Math.min(scaleX, scaleY, 1);
+            setScale(autoScale);
+            // 居中
+            setPosition({
+                x: (containerWidth - img.width * autoScale) / 2,
+                y: (containerHeight - img.height * autoScale) / 2
+            });
         };
         img.src = imageUrl;
     }, [imageUrl]);
 
-    // 更新显示尺寸
-    useEffect(() => {
-        if (imageLoaded) {
-            setDisplaySize(calculateDisplaySize());
-        }
-    }, [imageLoaded, calculateDisplaySize]);
+    // 生成唯一ID
+    const generateId = () => Math.random().toString(36).substr(2, 9);
 
-    // 缩放比例
-    const scale = imageSize.width > 0 ? displaySize.width / imageSize.width : 1;
+    // 获取鼠标在图片坐标系中的位置
+    const getPointerPosition = useCallback(() => {
+        const stage = stageRef.current;
+        if (!stage) return null;
 
-    // 绘制Canvas（不包含正在编辑的文字）
-    const redrawCanvas = useCallback(() => {
-        const canvas = canvasRef.current;
-        const img = imageRef.current;
-        if (!canvas || !imageLoaded || !img) return;
+        const pointer = stage.getPointerPosition();
+        if (!pointer) return null;
 
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-
-        // 清空画布
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // 绘制背景图片
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-        // 绘制所有路径
-        paths.forEach(path => {
-            if (path.points.length < 2) return;
-            ctx.beginPath();
-            ctx.strokeStyle = path.color;
-            ctx.lineWidth = path.width;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            ctx.moveTo(path.points[0].x, path.points[0].y);
-            for (let i = 1; i < path.points.length; i++) {
-                ctx.lineTo(path.points[i].x, path.points[i].y);
-            }
-            ctx.stroke();
-        });
-
-        // 绘制当前路径
-        if (currentPath.length >= 2 && tool === 'pen') {
-            ctx.beginPath();
-            ctx.strokeStyle = currentColor;
-            ctx.lineWidth = penWidth;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            ctx.moveTo(currentPath[0].x, currentPath[0].y);
-            for (let i = 1; i < currentPath.length; i++) {
-                ctx.lineTo(currentPath[i].x, currentPath[i].y);
-            }
-            ctx.stroke();
-        }
-
-        // 绘制文字标注（排除正在编辑的）
-        textAnnotations.forEach(annotation => {
-            if (annotation.id === editingTextId) return; // 跳过正在编辑的文字
-
-            ctx.font = `bold ${annotation.fontSize}px Arial`;
-            ctx.fillStyle = annotation.color;
-            // 添加描边使文字在任何背景下都可见
-            ctx.strokeStyle = annotation.color === '#000000' ? '#FFFFFF' : '#000000';
-            ctx.lineWidth = 2;
-            ctx.strokeText(annotation.text, annotation.x, annotation.y);
-            ctx.fillText(annotation.text, annotation.x, annotation.y);
-        });
-    }, [imageLoaded, paths, currentPath, textAnnotations, currentColor, tool, editingTextId]);
-
-    useEffect(() => {
-        redrawCanvas();
-    }, [redrawCanvas]);
-
-    // 获取画布坐标（从显示坐标转换为实际坐标）
-    const getCanvasCoordinates = (e: React.MouseEvent<HTMLCanvasElement>): Point => {
-        const canvas = canvasRef.current;
-        if (!canvas) return { x: 0, y: 0 };
-
-        const rect = canvas.getBoundingClientRect();
-        const scaleX = canvas.width / rect.width;
-        const scaleY = canvas.height / rect.height;
-
+        // 转换为图片坐标
         return {
-            x: Math.round((e.clientX - rect.left) * scaleX),
-            y: Math.round((e.clientY - rect.top) * scaleY)
+            x: (pointer.x - position.x) / scale,
+            y: (pointer.y - position.y) / scale
         };
-    };
+    }, [position, scale]);
 
-    // 检查点是否在文字上（使用画布坐标）
-    const findTextAtPoint = (point: Point): TextAnnotation | null => {
-        const canvas = canvasRef.current;
-        if (!canvas) return null;
-
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return null;
-
-        for (let i = textAnnotations.length - 1; i >= 0; i--) {
-            const annotation = textAnnotations[i];
-            ctx.font = `bold ${annotation.fontSize}px Arial`;
-            const metrics = ctx.measureText(annotation.text);
-            const height = annotation.fontSize;
-
-            // 扩大点击区域
-            const padding = 5;
-            if (point.x >= annotation.x - padding &&
-                point.x <= annotation.x + metrics.width + padding &&
-                point.y >= annotation.y - height - padding &&
-                point.y <= annotation.y + padding) {
-                return annotation;
-            }
-        }
-        return null;
-    };
-
-    // 检查点是否在路径上（使用画布坐标）
-    const findPathAtPoint = (point: Point): DrawPath | null => {
-        const threshold = 15; // 增大检测范围
-
-        for (let i = paths.length - 1; i >= 0; i--) {
-            const path = paths[i];
-            for (const p of path.points) {
-                const distance = Math.sqrt(Math.pow(point.x - p.x, 2) + Math.pow(point.y - p.y, 2));
-                if (distance < threshold) {
-                    return path;
-                }
-            }
-        }
-        return null;
-    };
-
-    // 鼠标事件处理
-    const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-        const point = getCanvasCoordinates(e);
+    // 鼠标按下
+    const handleMouseDown = () => {
+        const pos = getPointerPosition();
+        if (!pos) return;
 
         if (tool === 'pen') {
             setIsDrawing(true);
-            setCurrentPath([point]);
+            setCurrentLine([pos.x, pos.y]);
         } else if (tool === 'text') {
-            // 先确认之前的文字编辑
-            if (textPosition && textInput.trim()) {
-                confirmTextEdit();
-            }
-
-            // 检查是否点击了现有文字
-            const existingText = findTextAtPoint(point);
-            if (existingText) {
-                setEditingTextId(existingText.id);
-                setTextInput(existingText.text);
-                setTextPosition({ x: existingText.x, y: existingText.y });
-                setCurrentFontSize(existingText.fontSize);
-                setCurrentColor(existingText.color);
-            } else {
-                setEditingTextId(null);
-                setTextInput('');
-                setTextPosition(point);
-            }
-        } else if (tool === 'eraser') {
-            handleErase(point);
-        }
-    };
-
-    // 橡皮擦处理
-    const handleErase = (point: Point) => {
-        if (eraserMode === 'stroke') {
-            // 按笔画擦除 - 删除整条路径或文字
-            const pathToRemove = findPathAtPoint(point);
-            if (pathToRemove) {
-                setPaths(prev => prev.filter(p => p.id !== pathToRemove.id));
-                return;
-            }
-            const textToRemove = findTextAtPoint(point);
-            if (textToRemove) {
-                setTextAnnotations(prev => prev.filter(t => t.id !== textToRemove.id));
-            }
-        } else {
-            // 像素擦除 - 直接在canvas上用背景图覆盖
-            const canvas = canvasRef.current;
-            const ctx = canvas?.getContext('2d');
-            const img = imageRef.current;
-            if (ctx && img && canvas) {
-                const eraserRadius = 15;
-                // 保存当前状态
-                ctx.save();
-                // 创建圆形裁剪区域
-                ctx.beginPath();
-                ctx.arc(point.x, point.y, eraserRadius, 0, Math.PI * 2);
-                ctx.clip();
-                // 绘制背景图片到裁剪区域
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                ctx.restore();
+            // 检查是否点击了现有文字（通过 Konva 事件处理）
+            if (!editingText) {
+                setEditingText({ id: null, x: pos.x, y: pos.y });
+                setTextInputValue('');
             }
         }
     };
 
-    const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-        if (!isDrawing) return;
+    // 鼠标移动
+    const handleMouseMove = () => {
+        if (!isDrawing || tool !== 'pen') return;
 
-        const point = getCanvasCoordinates(e);
+        const pos = getPointerPosition();
+        if (!pos) return;
 
-        if (tool === 'pen') {
-            setCurrentPath(prev => [...prev, point]);
-        } else if (tool === 'eraser' && eraserMode === 'pixel') {
-            handleErase(point);
-        }
+        setCurrentLine(prev => [...prev, pos.x, pos.y]);
     };
 
+    // 鼠标释放
     const handleMouseUp = () => {
-        if (tool === 'pen' && isDrawing && currentPath.length >= 2) {
-            setPaths(prev => [...prev, {
+        if (isDrawing && currentLine.length >= 4) {
+            setLines(prev => [...prev, {
                 id: generateId(),
-                points: currentPath,
+                points: currentLine,
                 color: currentColor,
-                width: penWidth
+                strokeWidth: strokeWidth
             }]);
         }
         setIsDrawing(false);
-        setCurrentPath([]);
+        setCurrentLine([]);
     };
 
-    // 确认文字编辑
-    const confirmTextEdit = () => {
-        if (!textPosition || !textInput.trim()) {
-            cancelTextEdit();
+    // 点击线条删除（橡皮擦模式）
+    const handleLineClick = (lineId: string) => {
+        if (tool === 'eraser') {
+            setLines(prev => prev.filter(l => l.id !== lineId));
+        }
+    };
+
+    // 点击文字
+    const handleTextClick = (textItem: TextItem) => {
+        if (tool === 'eraser') {
+            setTexts(prev => prev.filter(t => t.id !== textItem.id));
+        } else if (tool === 'text') {
+            setEditingText({ id: textItem.id, x: textItem.x, y: textItem.y });
+            setTextInputValue(textItem.text);
+            setCurrentFontSize(textItem.fontSize);
+            setCurrentColor(textItem.color);
+        }
+    };
+
+    // 确认文字输入
+    const confirmTextInput = () => {
+        if (!editingText || !textInputValue.trim()) {
+            setEditingText(null);
+            setTextInputValue('');
             return;
         }
 
-        if (editingTextId) {
+        if (editingText.id) {
             // 更新现有文字
-            setTextAnnotations(prev => prev.map(t =>
-                t.id === editingTextId
-                    ? { ...t, text: textInput, color: currentColor, fontSize: currentFontSize }
+            setTexts(prev => prev.map(t =>
+                t.id === editingText.id
+                    ? { ...t, text: textInputValue, color: currentColor, fontSize: currentFontSize }
                     : t
             ));
         } else {
             // 添加新文字
-            setTextAnnotations(prev => [...prev, {
+            setTexts(prev => [...prev, {
                 id: generateId(),
-                x: textPosition.x,
-                y: textPosition.y,
-                text: textInput,
+                x: editingText.x,
+                y: editingText.y,
+                text: textInputValue,
                 color: currentColor,
                 fontSize: currentFontSize
             }]);
         }
 
-        cancelTextEdit();
+        setEditingText(null);
+        setTextInputValue('');
     };
 
-    // 取消文字编辑
-    const cancelTextEdit = () => {
-        setTextInput('');
-        setTextPosition(null);
-        setEditingTextId(null);
+    // 缩放
+    const handleZoom = (delta: number) => {
+        const newScale = Math.max(0.2, Math.min(3, scale + delta));
+        setScale(newScale);
     };
 
-    // 调整字体大小
-    const adjustFontSize = (delta: number) => {
-        const currentIndex = FONT_SIZES.indexOf(currentFontSize);
-        const newIndex = Math.max(0, Math.min(FONT_SIZES.length - 1, currentIndex + delta));
-        setCurrentFontSize(FONT_SIZES[newIndex]);
+    // 滚轮缩放
+    const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
+        e.evt.preventDefault();
+        const delta = e.evt.deltaY > 0 ? -0.1 : 0.1;
+        handleZoom(delta);
+    };
+
+    // 拖拽画布
+    const handleStageDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
+        if (tool === 'pan') {
+            setPosition({
+                x: e.target.x(),
+                y: e.target.y()
+            });
+        }
     };
 
     // 撤销
     const handleUndo = () => {
-        if (paths.length > 0) {
-            setPaths(prev => prev.slice(0, -1));
-        } else if (textAnnotations.length > 0) {
-            setTextAnnotations(prev => prev.slice(0, -1));
+        if (lines.length > 0) {
+            setLines(prev => prev.slice(0, -1));
+        } else if (texts.length > 0) {
+            setTexts(prev => prev.slice(0, -1));
         }
     };
 
     // 清除所有
     const handleClear = () => {
-        setPaths([]);
-        setTextAnnotations([]);
-        setCurrentPath([]);
-        cancelTextEdit();
+        setLines([]);
+        setTexts([]);
     };
 
     // 应用标注
     const handleApply = () => {
-        // 先确认当前编辑的文字
-        if (textPosition && textInput.trim()) {
-            confirmTextEdit();
-        }
+        const stage = stageRef.current;
+        if (!stage || !image) return;
 
-        // 等待重绘完成后导出
-        setTimeout(() => {
-            const canvas = canvasRef.current;
-            if (!canvas) return;
+        // 创建一个临时画布，使用原始图片尺寸
+        const tempStage = new Konva.Stage({
+            container: document.createElement('div'),
+            width: image.width,
+            height: image.height
+        });
 
-            // 强制重绘一次确保所有内容都绘制好
-            redrawCanvas();
+        const tempLayer = new Konva.Layer();
+        tempStage.add(tempLayer);
 
-            setTimeout(() => {
-                const dataUrl = canvas.toDataURL('image/png');
-                onApply(dataUrl);
-            }, 50);
-        }, 50);
+        // 绘制背景图片
+        const bgImage = new Konva.Image({
+            image: image,
+            x: 0,
+            y: 0,
+            width: image.width,
+            height: image.height
+        });
+        tempLayer.add(bgImage);
+
+        // 绘制所有线条
+        lines.forEach(line => {
+            const konvaLine = new Konva.Line({
+                points: line.points,
+                stroke: line.color,
+                strokeWidth: line.strokeWidth,
+                lineCap: 'round',
+                lineJoin: 'round'
+            });
+            tempLayer.add(konvaLine);
+        });
+
+        // 绘制所有文字
+        texts.forEach(text => {
+            const konvaText = new Konva.Text({
+                x: text.x,
+                y: text.y,
+                text: text.text,
+                fontSize: text.fontSize,
+                fill: text.color,
+                fontStyle: 'bold'
+            });
+            tempLayer.add(konvaText);
+        });
+
+        tempLayer.draw();
+
+        const dataUrl = tempStage.toDataURL({ pixelRatio: 1 });
+        tempStage.destroy();
+
+        onApply(dataUrl);
     };
 
-    // 计算文字输入框在显示坐标系中的位置
-    const getTextInputPosition = () => {
-        if (!textPosition) return { left: 0, top: 0 };
+    // 计算文字输入框位置（屏幕坐标）
+    const getTextInputScreenPosition = () => {
+        if (!editingText) return { left: 0, top: 0 };
         return {
-            left: textPosition.x * scale,
-            top: textPosition.y * scale
+            left: editingText.x * scale + position.x,
+            top: editingText.y * scale + position.y
         };
     };
 
-    const inputPos = getTextInputPosition();
+    const textInputPos = getTextInputScreenPosition();
 
     return (
         <div className="annotation-editor-overlay">
@@ -421,71 +309,57 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
                 {/* 工具栏 */}
                 <div className="annotation-toolbar">
                     <div className="annotation-tools">
-                        {/* 工具按钮 */}
                         <button
                             className={`annotation-tool-btn ${tool === 'pen' ? 'active' : ''}`}
-                            onClick={() => { setTool('pen'); cancelTextEdit(); }}
-                            title="画笔工具"
+                            onClick={() => setTool('pen')}
+                            title="画笔"
                         >
                             <Pencil size={18} />
                         </button>
                         <button
                             className={`annotation-tool-btn ${tool === 'text' ? 'active' : ''}`}
                             onClick={() => setTool('text')}
-                            title="文字工具"
+                            title="文字"
                         >
                             <Type size={18} />
                         </button>
                         <button
                             className={`annotation-tool-btn ${tool === 'eraser' ? 'active' : ''}`}
-                            onClick={() => { setTool('eraser'); cancelTextEdit(); }}
-                            title="橡皮擦"
+                            onClick={() => setTool('eraser')}
+                            title="橡皮擦 (点击删除)"
                         >
                             <Eraser size={18} />
                         </button>
-
-                        {/* 橡皮擦模式 */}
-                        {tool === 'eraser' && (
-                            <div className="annotation-eraser-modes">
-                                <button
-                                    className={`annotation-mode-btn ${eraserMode === 'stroke' ? 'active' : ''}`}
-                                    onClick={() => setEraserMode('stroke')}
-                                >
-                                    笔画
-                                </button>
-                                <button
-                                    className={`annotation-mode-btn ${eraserMode === 'pixel' ? 'active' : ''}`}
-                                    onClick={() => setEraserMode('pixel')}
-                                >
-                                    像素
-                                </button>
-                            </div>
-                        )}
-
-                        {/* 字体大小控制 */}
-                        {tool === 'text' && (
-                            <div className="annotation-font-size">
-                                <button
-                                    className="annotation-size-btn"
-                                    onClick={() => adjustFontSize(-1)}
-                                    disabled={currentFontSize === FONT_SIZES[0]}
-                                >
-                                    <Minus size={14} />
-                                </button>
-                                <span className="annotation-size-value">{currentFontSize}px</span>
-                                <button
-                                    className="annotation-size-btn"
-                                    onClick={() => adjustFontSize(1)}
-                                    disabled={currentFontSize === FONT_SIZES[FONT_SIZES.length - 1]}
-                                >
-                                    <Plus size={14} />
-                                </button>
-                            </div>
-                        )}
+                        <button
+                            className={`annotation-tool-btn ${tool === 'pan' ? 'active' : ''}`}
+                            onClick={() => setTool('pan')}
+                            title="移动画布"
+                        >
+                            <Move size={18} />
+                        </button>
 
                         <div className="annotation-divider" />
 
-                        {/* 颜色选择器 */}
+                        {/* 缩放 */}
+                        <button
+                            className="annotation-tool-btn"
+                            onClick={() => handleZoom(-0.2)}
+                            title="缩小"
+                        >
+                            <ZoomOut size={18} />
+                        </button>
+                        <span className="annotation-zoom-value">{Math.round(scale * 100)}%</span>
+                        <button
+                            className="annotation-tool-btn"
+                            onClick={() => handleZoom(0.2)}
+                            title="放大"
+                        >
+                            <ZoomIn size={18} />
+                        </button>
+
+                        <div className="annotation-divider" />
+
+                        {/* 颜色 */}
                         <div className="annotation-colors">
                             {COLORS.map(color => (
                                 <button
@@ -498,13 +372,26 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
                             ))}
                         </div>
 
+                        {/* 字体大小（文字模式） */}
+                        {tool === 'text' && (
+                            <select
+                                className="annotation-font-select"
+                                value={currentFontSize}
+                                onChange={(e) => setCurrentFontSize(Number(e.target.value))}
+                            >
+                                {FONT_SIZES.map(size => (
+                                    <option key={size} value={size}>{size}px</option>
+                                ))}
+                            </select>
+                        )}
+
                         <div className="annotation-divider" />
 
                         <button
                             className="annotation-tool-btn"
                             onClick={handleUndo}
                             title="撤销"
-                            disabled={paths.length === 0 && textAnnotations.length === 0}
+                            disabled={lines.length === 0 && texts.length === 0}
                         >
                             <Undo size={18} />
                         </button>
@@ -516,6 +403,7 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
                             <Trash2 size={18} />
                         </button>
                     </div>
+
                     <div className="annotation-actions">
                         <button className="annotation-btn-cancel" onClick={onCancel}>
                             <X size={16} /> 取消
@@ -526,69 +414,123 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
                     </div>
                 </div>
 
-                {/* 画布区域 */}
-                <div className="annotation-canvas-container">
-                    <canvas
-                        ref={canvasRef}
-                        width={imageSize.width || 800}
-                        height={imageSize.height || 600}
-                        style={{
-                            width: displaySize.width,
-                            height: displaySize.height,
-                            cursor: tool === 'pen' ? 'crosshair' : tool === 'text' ? 'text' : 'cell'
-                        }}
+                {/* Konva 画布 */}
+                <div className="annotation-canvas-container" style={{ position: 'relative' }}>
+                    <Stage
+                        ref={stageRef}
+                        width={containerWidth}
+                        height={containerHeight}
                         onMouseDown={handleMouseDown}
                         onMouseMove={handleMouseMove}
                         onMouseUp={handleMouseUp}
-                        onMouseLeave={handleMouseUp}
-                    />
+                        onWheel={handleWheel}
+                        draggable={tool === 'pan'}
+                        onDragEnd={handleStageDragEnd}
+                        x={position.x}
+                        y={position.y}
+                        scaleX={scale}
+                        scaleY={scale}
+                        style={{ cursor: tool === 'pan' ? 'grab' : tool === 'eraser' ? 'crosshair' : 'default' }}
+                    >
+                        <Layer>
+                            {/* 背景图片 */}
+                            {image && (
+                                <KonvaImage
+                                    image={image}
+                                    x={0}
+                                    y={0}
+                                />
+                            )}
 
-                    {/* 所见即所得的文字输入框 */}
-                    {textPosition && (
+                            {/* 已绘制的线条 */}
+                            {lines.map(line => (
+                                <Line
+                                    key={line.id}
+                                    points={line.points}
+                                    stroke={line.color}
+                                    strokeWidth={line.strokeWidth}
+                                    lineCap="round"
+                                    lineJoin="round"
+                                    onClick={() => handleLineClick(line.id)}
+                                    onTap={() => handleLineClick(line.id)}
+                                    hitStrokeWidth={20}
+                                />
+                            ))}
+
+                            {/* 当前正在绘制的线条 */}
+                            {currentLine.length >= 4 && (
+                                <Line
+                                    points={currentLine}
+                                    stroke={currentColor}
+                                    strokeWidth={strokeWidth}
+                                    lineCap="round"
+                                    lineJoin="round"
+                                />
+                            )}
+
+                            {/* 文字标注 */}
+                            {texts.map(text => (
+                                <Text
+                                    key={text.id}
+                                    x={text.x}
+                                    y={text.y}
+                                    text={text.text}
+                                    fontSize={text.fontSize}
+                                    fill={text.color}
+                                    fontStyle="bold"
+                                    onClick={() => handleTextClick(text)}
+                                    onTap={() => handleTextClick(text)}
+                                    draggable={tool === 'text'}
+                                    onDragEnd={(e) => {
+                                        setTexts(prev => prev.map(t =>
+                                            t.id === text.id
+                                                ? { ...t, x: e.target.x(), y: e.target.y() }
+                                                : t
+                                        ));
+                                    }}
+                                />
+                            ))}
+                        </Layer>
+                    </Stage>
+
+                    {/* 文字输入框 */}
+                    {editingText && (
                         <div
-                            className="annotation-text-wysiwyg"
+                            className="annotation-text-overlay"
                             style={{
-                                left: inputPos.left,
-                                top: inputPos.top,
-                                transform: 'translateY(-100%)'
+                                left: textInputPos.left,
+                                top: textInputPos.top
                             }}
                         >
                             <input
                                 type="text"
-                                value={textInput}
-                                onChange={(e) => setTextInput(e.target.value)}
+                                value={textInputValue}
+                                onChange={(e) => setTextInputValue(e.target.value)}
                                 onKeyDown={(e) => {
-                                    if (e.key === 'Enter') confirmTextEdit();
-                                    if (e.key === 'Escape') cancelTextEdit();
+                                    if (e.key === 'Enter') confirmTextInput();
+                                    if (e.key === 'Escape') {
+                                        setEditingText(null);
+                                        setTextInputValue('');
+                                    }
                                 }}
                                 placeholder="输入文字..."
                                 autoFocus
                                 style={{
                                     color: currentColor,
-                                    fontSize: `${currentFontSize * scale}px`,
-                                    fontWeight: 'bold',
-                                    textShadow: currentColor === '#000000'
-                                        ? '1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff'
-                                        : '1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000'
+                                    fontSize: currentFontSize * scale,
+                                    fontWeight: 'bold'
                                 }}
                             />
-                            <div className="annotation-text-actions">
-                                <button onClick={confirmTextEdit} title="确认 (Enter)">
-                                    <Check size={14} />
-                                </button>
-                                <button onClick={cancelTextEdit} title="取消 (Esc)">
-                                    <X size={14} />
-                                </button>
-                            </div>
                         </div>
                     )}
                 </div>
 
                 {/* 提示 */}
                 <div className="annotation-hint">
-                    {tool === 'pen' && '拖动绘制线条'}
-                    {tool === 'text' && (textPosition ? '输入文字，Enter确认，Esc取消' : '点击添加文字，点击已有文字可编辑')}
-                    {tool === 'eraser' && (eraserMode === 'stroke' ? '点击删除整条线或文字' : '拖动擦除')}
+                    {tool === 'pen' && '拖动绘制 | 滚轮缩放'}
+                    {tool === 'text' && '点击添加文字 | 点击已有文字编辑 | 拖动文字移动'}
+                    {tool === 'eraser' && '点击线条或文字删除'}
+                    {tool === 'pan' && '拖动移动画布 | 滚轮缩放'}
                 </div>
             </div>
         </div>

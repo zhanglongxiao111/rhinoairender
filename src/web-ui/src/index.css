@@ -2511,3 +2511,44 @@ body {
   border-color: var(--color-accent);
   color: white;
 }
+
+/* 缩放值显示 */
+.annotation-zoom-value {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  min-width: 45px;
+  text-align: center;
+  font-family: var(--font-mono);
+}
+
+/* 字体大小选择 */
+.annotation-font-select {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  margin-left: var(--space-2);
+}
+
+.annotation-font-select:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+/* 文字输入覆盖层 */
+.annotation-text-overlay {
+  position: absolute;
+  z-index: 10;
+}
+
+.annotation-text-overlay input {
+  background: transparent;
+  border: none;
+  border-bottom: 2px dashed currentColor;
+  outline: none;
+  min-width: 100px;
+  padding: 2px 4px;
+  font-family: Arial, sans-serif;
+}
