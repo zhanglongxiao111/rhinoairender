@@ -46,10 +46,14 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
     const textColor = '#FFFFFF';
     const fontSize = 18;
 
+    // 预加载图片引用
+    const imageRef = useRef<HTMLImageElement | null>(null);
+
     // 加载背景图片
     useEffect(() => {
         const img = new Image();
         img.onload = () => {
+            imageRef.current = img;
             setImageSize({ width: img.width, height: img.height });
             setImageLoaded(true);
         };
@@ -59,7 +63,8 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
     // 绘制Canvas
     const redrawCanvas = useCallback(() => {
         const canvas = canvasRef.current;
-        if (!canvas || !imageLoaded) return;
+        const img = imageRef.current;
+        if (!canvas || !imageLoaded || !img) return;
 
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
@@ -67,9 +72,7 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
         // 清空画布
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // 绘制背景图片
-        const img = new Image();
-        img.src = imageUrl;
+        // 绘制背景图片（使用预加载的图片）
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
         // 绘制所有路径

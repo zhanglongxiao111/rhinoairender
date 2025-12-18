@@ -313,8 +313,9 @@ function App() {
             mode,
             contrastAdjust: mode === 'flash' ? contrastAdjust : undefined,
             longEdge: longEdge > 0 ? longEdge : undefined,
+            referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
         } as any);
-    }, [bridge, prompt, source, selectedNamedView, count, resolution, aspectRatio, mode, contrastAdjust, longEdge]);
+    }, [bridge, prompt, source, selectedNamedView, count, resolution, aspectRatio, mode, contrastAdjust, longEdge, referenceImages]);
 
     // 取消
     const handleCancel = useCallback(() => {
