@@ -250,7 +250,8 @@ namespace AIRenderPanel
                 var fullPath = Path.GetFullPath(path);
                 if (File.Exists(fullPath))
                 {
-                    return "file:///" + fullPath.Replace("\\", "/");
+                    // 使用 Uri 类正确编码中文路径
+                    return new Uri(fullPath).AbsoluteUri;
                 }
             }
 
@@ -326,7 +327,8 @@ namespace AIRenderPanel
                 var indexPath = Path.Combine(extractDir, "index.html");
                 if (File.Exists(indexPath))
                 {
-                    return "file:///" + indexPath.Replace("\\", "/");
+                    // 使用 Uri 类正确编码中文路径
+                    return new Uri(indexPath).AbsoluteUri;
                 }
 
                 RhinoApp.WriteLine($"[AI渲染] index.html 未找到于 {extractDir}");
