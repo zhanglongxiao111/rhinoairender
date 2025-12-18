@@ -2237,3 +2237,156 @@ body {
   transform: scale(0.95);
   box-shadow: 0 4px 20px rgba(212, 168, 83, 0.3);
 }
+
+/* =============================================
+   标注编辑器
+   ============================================= */
+.annotation-editor-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.9);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.annotation-editor {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  max-width: 90vw;
+  max-height: 90vh;
+}
+
+.annotation-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-tertiary);
+}
+
+.annotation-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.annotation-tool-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.annotation-tool-btn:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.annotation-tool-btn.active {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: white;
+}
+
+.annotation-tool-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.annotation-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--color-border);
+  margin: 0 var(--space-2);
+}
+
+.annotation-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.annotation-btn-cancel,
+.annotation-btn-apply {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all var(--transition-fast);
+}
+
+.annotation-btn-cancel {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.annotation-btn-cancel:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.annotation-btn-apply {
+  background: var(--color-accent);
+  color: white;
+}
+
+.annotation-btn-apply:hover {
+  background: var(--color-accent-hover);
+}
+
+.annotation-canvas-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  overflow: auto;
+  background: #0a0a0a;
+}
+
+.annotation-canvas-container canvas {
+  border: 1px solid var(--color-border);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.annotation-text-input-container {
+  position: absolute;
+  transform: translate(-50%, -100%);
+}
+
+.annotation-text-input {
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid var(--color-accent);
+  color: white;
+  padding: var(--space-2) var(--space-3);
+  font-size: 14px;
+  min-width: 200px;
+  outline: none;
+}
+
+.annotation-text-input::placeholder {
+  color: var(--color-text-secondary);
+}
+
+.annotation-hint {
+  text-align: center;
+  padding: var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg-tertiary);
+}

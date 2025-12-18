@@ -15,9 +15,11 @@ import {
     Folder,
     Moon,
     Sun,
-    Cloud
+    Cloud,
+    Pencil
 } from 'lucide-react';
 import { useBridge } from './hooks/useBridge';
+import { AnnotationEditor } from './components/AnnotationEditor';
 import type {
     AppStatus,
     HistoryItem,
@@ -140,6 +142,7 @@ function App() {
     const [themeMode, setThemeMode] = useState<'auto' | 'light' | 'dark'>('auto'); // 主题模式
     const [rhinoIsDark, setRhinoIsDark] = useState(false); // Rhino主题状态
     const [canvasView, setCanvasView] = useState<'render' | 'source' | 'compare'>('render'); // 画布视图模式
+    const [showAnnotationEditor, setShowAnnotationEditor] = useState(false); // 显示标注编辑器
     const [settings, setSettings] = useState<SettingsData>({
         outputMode: 'auto',
         outputFolder: '',
@@ -731,6 +734,15 @@ function App() {
                                 >
                                     <Columns size={16} />
                                 </button>
+                                {previewImage && (
+                                    <button
+                                        className="toolbar-tab"
+                                        onClick={() => setShowAnnotationEditor(true)}
+                                        title="标注截图"
+                                    >
+                                        <Pencil size={16} />
+                                    </button>
+                                )}
                                 {isProcessing && (
                                     <button
                                         className="toolbar-tab"
@@ -1192,6 +1204,18 @@ function App() {
                     </div>
                 )
             }
+
+            {/* 标注编辑器 */}
+            {showAnnotationEditor && previewImage && (
+                <AnnotationEditor
+                    imageUrl={previewImage}
+                    onApply={(annotatedImageUrl) => {
+                        setPreviewImage(annotatedImageUrl);
+                        setShowAnnotationEditor(false);
+                    }}
+                    onCancel={() => setShowAnnotationEditor(false)}
+                />
+            )}
         </div >
     );
 }
