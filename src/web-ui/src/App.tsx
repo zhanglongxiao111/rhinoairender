@@ -721,14 +721,14 @@ function App() {
                                     className={`toolbar-tab ${canvasView === 'render' ? 'active' : ''}`}
                                     onClick={() => setCanvasView('render')}
                                 >
-                                    Render
+                                    渲染后
                                 </button>
                                 <button
                                     className={`toolbar-tab ${canvasView === 'source' ? 'active' : ''}`}
                                     onClick={() => setCanvasView('source')}
                                     disabled={!previewImage}
                                 >
-                                    Source
+                                    原始图
                                 </button>
                                 <button
                                     className={`toolbar-tab ${canvasView === 'compare' ? 'active' : ''}`}
@@ -768,7 +768,7 @@ function App() {
                             {/* 根据 canvasView 显示不同内容 */}
                             {canvasView === 'source' && previewImage ? (
                                 <>
-                                    <div className="canvas-label">Source Screenshot {mode === 'flash' && `(对比度 ${contrastAdjust}%)`}</div>
+                                    <div className="canvas-label">原始图 {mode === 'flash' && `(对比度 ${contrastAdjust}%)`}</div>
                                     <img
                                         src={previewImage}
                                         alt="视口截图"
@@ -813,7 +813,7 @@ function App() {
                                 </div>
                             ) : generatedImages.length === 0 && previewImage ? (
                                 <>
-                                    <div className="canvas-label">Source Screenshot {mode === 'flash' && `(对比度 ${contrastAdjust}%)`}</div>
+                                    <div className="canvas-label">原始图 {mode === 'flash' && `(对比度 ${contrastAdjust}%)`}</div>
                                     <img
                                         src={previewImage}
                                         alt="视口截图"
@@ -823,7 +823,7 @@ function App() {
                                 </>
                             ) : generatedImages.length === 1 ? (
                                 <>
-                                    <div className="canvas-label">AI Render Preview</div>
+                                    <div className="canvas-label">渲染后</div>
                                     <img
                                         src={generatedImages[0]}
                                         alt="生成结果"
@@ -834,7 +834,7 @@ function App() {
                                 </>
                             ) : (
                                 <>
-                                    <div className="canvas-label">AI Render Preview</div>
+                                    <div className="canvas-label">渲染后</div>
                                     <div className={`preview-grid ${generatedImages.length <= 2 ? 'cols-2' : generatedImages.length <= 4 ? 'cols-2-2' : 'cols-3'}`}>
                                         {generatedImages.map((img, index) => (
                                             <div
