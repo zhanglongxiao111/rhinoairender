@@ -768,8 +768,13 @@ function App() {
                             {/* 根据 canvasView 显示不同内容 */}
                             {canvasView === 'source' && previewImage ? (
                                 <>
-                                    <div className="canvas-label">Source Screenshot</div>
-                                    <img src={previewImage} alt="视口截图" className="preview-image" />
+                                    <div className="canvas-label">Source Screenshot {mode === 'flash' && `(对比度 ${contrastAdjust}%)`}</div>
+                                    <img
+                                        src={previewImage}
+                                        alt="视口截图"
+                                        className="preview-image"
+                                        style={mode === 'flash' ? { filter: `contrast(${1 + contrastAdjust / 100})` } : undefined}
+                                    />
                                 </>
                             ) : canvasView === 'compare' && previewImage && generatedImages.length > 0 ? (
                                 <>
@@ -808,8 +813,13 @@ function App() {
                                 </div>
                             ) : generatedImages.length === 0 && previewImage ? (
                                 <>
-                                    <div className="canvas-label">Source Screenshot</div>
-                                    <img src={previewImage} alt="视口截图" className="preview-image" />
+                                    <div className="canvas-label">Source Screenshot {mode === 'flash' && `(对比度 ${contrastAdjust}%)`}</div>
+                                    <img
+                                        src={previewImage}
+                                        alt="视口截图"
+                                        className="preview-image"
+                                        style={mode === 'flash' ? { filter: `contrast(${1 + contrastAdjust / 100})` } : undefined}
+                                    />
                                 </>
                             ) : generatedImages.length === 1 ? (
                                 <>
