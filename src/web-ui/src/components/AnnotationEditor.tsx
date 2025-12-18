@@ -1,7 +1,5 @@
-import { useState, useRef, useEffect, useCallback, Component, ReactNode } from 'react';
-import { Stage, Layer, Line, Text, Image as KonvaImage } from 'react-konva';
-import Konva from 'konva';
-import { Pencil, Type, Trash2, Check, X, Undo, Eraser, ZoomIn, ZoomOut, Move, AlertCircle } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Pencil, Type, Trash2, Check, X, Undo, Eraser, ZoomIn, ZoomOut, Move } from 'lucide-react';
 
 interface AnnotationEditorProps {
     imageUrl: string;
@@ -13,7 +11,7 @@ type Tool = 'pen' | 'text' | 'eraser' | 'pan';
 
 interface DrawLine {
     id: string;
-    points: number[];
+    points: number[]; // [x1, y1, x2, y2, ...]
     color: string;
     strokeWidth: number;
 }
@@ -25,39 +23,6 @@ interface TextItem {
     text: string;
     color: string;
     fontSize: number;
-}
-
-// 错误边界组件
-interface ErrorBoundaryState {
-    hasError: boolean;
-    error?: Error;
-}
-
-class ErrorBoundary extends Component<{ children: ReactNode; onError: () => void }, ErrorBoundaryState> {
-    constructor(props: { children: ReactNode; onError: () => void }) {
-        super(props);
-        this.state = { hasError: false };
-    }
-
-    static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-        return { hasError: true, error };
-    }
-
-    render() {
-        if (this.state.hasError) {
-            return (
-                <div className="annotation-error">
-                    <AlertCircle size={48} />
-                    <h3>标注编辑器加载失败</h3>
-                    <p>{this.state.error?.message || '未知错误'}</p>
-                    <button onClick={this.props.onError} className="annotation-btn-cancel">
-                        <X size={16} /> 返回
-                    </button>
-                </div>
-            );
-        }
-        return this.props.children;
-    }
 }
 
 // 预设颜色
@@ -72,9 +37,65 @@ const COLORS = [
 
 const FONT_SIZES = [16, 24, 32, 48, 64];
 
-function AnnotationEditorInner({ imageUrl, onApply, onCancel }: AnnotationEditorProps) {
-    const stageRef = useRef<Konva.Stage>(null);
-    const [image, setImage] = useState<HTMLImageElement | null>(null);
+// 生成唯一ID
+const generateId = () => Math.random().toString(36).substr(2, 9);
+
+// 计算点到线段的距离
+function pointToLineDistance(px: number, py: number, x1: number, y1: number, x2: number, y2: number): number {
+    const A = px - x1;
+    const B = py - y1;
+    const C = x2 - x1;
+    const D = y2 - y1;
+
+    const dot = A * C + B * D;
+    const lenSq = C * C + D * D;
+    let param = -1;
+
+    if (lenSq !== 0) param = dot / lenSq;
+
+    let xx, yy;
+
+    if (param < 0) {
+        xx = x1;
+        yy = y1;
+    } else if (param > 1) {
+        xx = x2;
+        yy = y2;
+    } else {
+        xx = x1 + param * C;
+        yy = y1 + param * D;
+    }
+
+    const dx = px - xx;
+    const dy = py - yy;
+    return Math.sqrt(dx * dx + dy * dy);
+}
+
+// 检查点是否在折线上
+function isPointOnLine(px: number, py: number, points: number[], threshold: number = 10): boolean {
+    for (let i = 0; i < points.length - 2; i += 2) {
+        const dist = pointToLineDistance(px, py, points[i], points[i + 1], points[i + 2], points[i + 3]);
+        if (dist < threshold) return true;
+    }
+    return false;
+}
+
+// 检查点是否在文字区域内
+function isPointInTextBounds(px: number, py: number, text: TextItem, ctx: CanvasRenderingContext2D): boolean {
+    ctx.font = `bold ${text.fontSize}px Arial`;
+    const metrics = ctx.measureText(text.text);
+    const width = metrics.width;
+    const height = text.fontSize;
+
+    return px >= text.x && px <= text.x + width && py >= text.y - height && py <= text.y;
+}
+
+export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEditorProps) {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const imageRef = useRef<HTMLImageElement | null>(null);
+
+    // 加载状态
     const [loadingState, setLoadingState] = useState<'loading' | 'loaded' | 'error'>('loading');
     const [errorMessage, setErrorMessage] = useState('');
 
@@ -84,9 +105,11 @@ function AnnotationEditorInner({ imageUrl, onApply, onCancel }: AnnotationEditor
     const [currentFontSize, setCurrentFontSize] = useState(32);
     const [strokeWidth] = useState(3);
 
-    // 缩放状态
+    // 缩放和平移
     const [scale, setScale] = useState(1);
-    const [position, setPosition] = useState({ x: 0, y: 0 });
+    const [offset, setOffset] = useState({ x: 0, y: 0 });
+    const [isPanning, setIsPanning] = useState(false);
+    const [panStart, setPanStart] = useState({ x: 0, y: 0 });
 
     // 绘图数据
     const [lines, setLines] = useState<DrawLine[]>([]);
@@ -97,10 +120,12 @@ function AnnotationEditorInner({ imageUrl, onApply, onCancel }: AnnotationEditor
     // 文字编辑
     const [editingText, setEditingText] = useState<{ id: string | null; x: number; y: number } | null>(null);
     const [textInputValue, setTextInputValue] = useState('');
+    const [draggingTextId, setDraggingTextId] = useState<string | null>(null);
+    const [dragOffset] = useState({ x: 0, y: 0 });
 
-    // 显示尺寸
-    const containerWidth = 900;
-    const containerHeight = 600;
+    // 画布尺寸
+    const canvasWidth = 900;
+    const canvasHeight = 600;
 
     // 加载图片
     useEffect(() => {
@@ -111,27 +136,25 @@ function AnnotationEditorInner({ imageUrl, onApply, onCancel }: AnnotationEditor
         }
 
         setLoadingState('loading');
-        const img = new window.Image();
+        const img = new Image();
         img.crossOrigin = 'anonymous';
 
         img.onload = () => {
-            console.log('Image loaded:', img.width, 'x', img.height);
-            setImage(img);
-            // 自动缩放以适应容器
-            const scaleX = (containerWidth - 40) / img.width;
-            const scaleY = (containerHeight - 40) / img.height;
+            imageRef.current = img;
+            // 自动缩放以适应画布
+            const scaleX = (canvasWidth - 40) / img.width;
+            const scaleY = (canvasHeight - 40) / img.height;
             const autoScale = Math.min(scaleX, scaleY, 1);
             setScale(autoScale);
             // 居中
-            setPosition({
-                x: (containerWidth - img.width * autoScale) / 2,
-                y: (containerHeight - img.height * autoScale) / 2
+            setOffset({
+                x: (canvasWidth - img.width * autoScale) / 2,
+                y: (canvasHeight - img.height * autoScale) / 2
             });
             setLoadingState('loaded');
         };
 
-        img.onerror = (e) => {
-            console.error('Image load error:', e);
+        img.onerror = () => {
             setLoadingState('error');
             setErrorMessage('图片加载失败');
         };
@@ -149,54 +172,175 @@ function AnnotationEditorInner({ imageUrl, onApply, onCancel }: AnnotationEditor
         return () => clearTimeout(timeout);
     }, [imageUrl]);
 
-    // 生成唯一ID
-    const generateId = () => Math.random().toString(36).substr(2, 9);
-
-    // 获取鼠标在图片坐标系中的位置
-    const getPointerPosition = useCallback(() => {
-        const stage = stageRef.current;
-        if (!stage) return null;
-
-        const pointer = stage.getPointerPosition();
-        if (!pointer) return null;
-
-        // 转换为图片坐标
+    // 屏幕坐标转图片坐标
+    const screenToImage = useCallback((screenX: number, screenY: number) => {
         return {
-            x: (pointer.x - position.x) / scale,
-            y: (pointer.y - position.y) / scale
+            x: (screenX - offset.x) / scale,
+            y: (screenY - offset.y) / scale
         };
-    }, [position, scale]);
+    }, [offset, scale]);
+
+    // 图片坐标转屏幕坐标
+    const imageToScreen = useCallback((imgX: number, imgY: number) => {
+        return {
+            x: imgX * scale + offset.x,
+            y: imgY * scale + offset.y
+        };
+    }, [offset, scale]);
+
+    // 获取鼠标在画布上的位置
+    const getCanvasPosition = useCallback((e: React.MouseEvent) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return null;
+        const rect = canvas.getBoundingClientRect();
+        return {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+        };
+    }, []);
+
+    // 重绘画布
+    const redraw = useCallback(() => {
+        const canvas = canvasRef.current;
+        const ctx = canvas?.getContext('2d');
+        const img = imageRef.current;
+        if (!canvas || !ctx || !img || loadingState !== 'loaded') return;
+
+        // 清空画布
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 保存状态
+        ctx.save();
+
+        // 应用变换
+        ctx.translate(offset.x, offset.y);
+        ctx.scale(scale, scale);
+
+        // 绘制背景图片
+        ctx.drawImage(img, 0, 0);
+
+        // 绘制所有线条
+        lines.forEach(line => {
+            if (line.points.length < 4) return;
+            ctx.beginPath();
+            ctx.strokeStyle = line.color;
+            ctx.lineWidth = line.strokeWidth;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.moveTo(line.points[0], line.points[1]);
+            for (let i = 2; i < line.points.length; i += 2) {
+                ctx.lineTo(line.points[i], line.points[i + 1]);
+            }
+            ctx.stroke();
+        });
+
+        // 绘制当前正在画的线条
+        if (currentLine.length >= 4) {
+            ctx.beginPath();
+            ctx.strokeStyle = currentColor;
+            ctx.lineWidth = strokeWidth;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.moveTo(currentLine[0], currentLine[1]);
+            for (let i = 2; i < currentLine.length; i += 2) {
+                ctx.lineTo(currentLine[i], currentLine[i + 1]);
+            }
+            ctx.stroke();
+        }
+
+        // 绘制所有文字
+        texts.forEach(text => {
+            ctx.font = `bold ${text.fontSize}px Arial`;
+            ctx.fillStyle = text.color;
+            ctx.fillText(text.text, text.x, text.y);
+        });
+
+        // 恢复状态
+        ctx.restore();
+    }, [lines, texts, currentLine, currentColor, strokeWidth, offset, scale, loadingState]);
+
+    // 监听状态变化重绘
+    useEffect(() => {
+        redraw();
+    }, [redraw]);
 
     // 鼠标按下
-    const handleMouseDown = () => {
-        const pos = getPointerPosition();
+    const handleMouseDown = (e: React.MouseEvent) => {
+        const pos = getCanvasPosition(e);
         if (!pos) return;
 
-        if (tool === 'pen') {
+        const imgPos = screenToImage(pos.x, pos.y);
+        const canvas = canvasRef.current;
+        const ctx = canvas?.getContext('2d');
+
+        if (tool === 'pan') {
+            setIsPanning(true);
+            setPanStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
+        } else if (tool === 'pen') {
             setIsDrawing(true);
-            setCurrentLine([pos.x, pos.y]);
-        } else if (tool === 'text') {
-            // 检查是否点击了现有文字（通过 Konva 事件处理）
-            if (!editingText) {
-                setEditingText({ id: null, x: pos.x, y: pos.y });
-                setTextInputValue('');
+            setCurrentLine([imgPos.x, imgPos.y]);
+        } else if (tool === 'eraser' && ctx) {
+            // 检查是否点击了线条
+            for (let i = lines.length - 1; i >= 0; i--) {
+                if (isPointOnLine(imgPos.x, imgPos.y, lines[i].points, 15 / scale)) {
+                    setLines(prev => prev.filter((_, idx) => idx !== i));
+                    return;
+                }
             }
+            // 检查是否点击了文字
+            for (let i = texts.length - 1; i >= 0; i--) {
+                if (isPointInTextBounds(imgPos.x, imgPos.y, texts[i], ctx)) {
+                    setTexts(prev => prev.filter((_, idx) => idx !== i));
+                    return;
+                }
+            }
+        } else if (tool === 'text' && ctx) {
+            // 检查是否点击了现有文字
+            for (let i = texts.length - 1; i >= 0; i--) {
+                if (isPointInTextBounds(imgPos.x, imgPos.y, texts[i], ctx)) {
+                    // 开始编辑现有文字
+                    setEditingText({ id: texts[i].id, x: texts[i].x, y: texts[i].y });
+                    setTextInputValue(texts[i].text);
+                    setCurrentColor(texts[i].color);
+                    setCurrentFontSize(texts[i].fontSize);
+                    return;
+                }
+            }
+            // 添加新文字
+            setEditingText({ id: null, x: imgPos.x, y: imgPos.y });
+            setTextInputValue('');
         }
     };
 
     // 鼠标移动
-    const handleMouseMove = () => {
-        if (!isDrawing || tool !== 'pen') return;
-
-        const pos = getPointerPosition();
-        if (!pos) return;
-
-        setCurrentLine(prev => [...prev, pos.x, pos.y]);
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (isPanning) {
+            setOffset({
+                x: e.clientX - panStart.x,
+                y: e.clientY - panStart.y
+            });
+        } else if (isDrawing && tool === 'pen') {
+            const pos = getCanvasPosition(e);
+            if (!pos) return;
+            const imgPos = screenToImage(pos.x, pos.y);
+            setCurrentLine(prev => [...prev, imgPos.x, imgPos.y]);
+        } else if (draggingTextId) {
+            const pos = getCanvasPosition(e);
+            if (!pos) return;
+            const imgPos = screenToImage(pos.x, pos.y);
+            setTexts(prev => prev.map(t =>
+                t.id === draggingTextId
+                    ? { ...t, x: imgPos.x - dragOffset.x, y: imgPos.y - dragOffset.y }
+                    : t
+            ));
+        }
     };
 
     // 鼠标释放
     const handleMouseUp = () => {
-        if (isDrawing && currentLine.length >= 4) {
+        if (isPanning) {
+            setIsPanning(false);
+        } else if (isDrawing && currentLine.length >= 4) {
             setLines(prev => [...prev, {
                 id: generateId(),
                 points: currentLine,
@@ -206,25 +350,19 @@ function AnnotationEditorInner({ imageUrl, onApply, onCancel }: AnnotationEditor
         }
         setIsDrawing(false);
         setCurrentLine([]);
+        setDraggingTextId(null);
     };
 
-    // 点击线条删除（橡皮擦模式）
-    const handleLineClick = (lineId: string) => {
-        if (tool === 'eraser') {
-            setLines(prev => prev.filter(l => l.id !== lineId));
-        }
+    // 滚轮缩放
+    const handleWheel = (e: React.WheelEvent) => {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+        handleZoom(delta);
     };
 
-    // 点击文字
-    const handleTextClick = (textItem: TextItem) => {
-        if (tool === 'eraser') {
-            setTexts(prev => prev.filter(t => t.id !== textItem.id));
-        } else if (tool === 'text') {
-            setEditingText({ id: textItem.id, x: textItem.x, y: textItem.y });
-            setTextInputValue(textItem.text);
-            setCurrentFontSize(textItem.fontSize);
-            setCurrentColor(textItem.color);
-        }
+    // 缩放
+    const handleZoom = (delta: number) => {
+        setScale(prev => Math.max(0.2, Math.min(3, prev + delta)));
     };
 
     // 确认文字输入
@@ -247,7 +385,7 @@ function AnnotationEditorInner({ imageUrl, onApply, onCancel }: AnnotationEditor
             setTexts(prev => [...prev, {
                 id: generateId(),
                 x: editingText.x,
-                y: editingText.y,
+                y: editingText.y + currentFontSize, // 文字基线向下偏移
                 text: textInputValue,
                 color: currentColor,
                 fontSize: currentFontSize
@@ -256,29 +394,6 @@ function AnnotationEditorInner({ imageUrl, onApply, onCancel }: AnnotationEditor
 
         setEditingText(null);
         setTextInputValue('');
-    };
-
-    // 缩放
-    const handleZoom = (delta: number) => {
-        const newScale = Math.max(0.2, Math.min(3, scale + delta));
-        setScale(newScale);
-    };
-
-    // 滚轮缩放
-    const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
-        e.evt.preventDefault();
-        const delta = e.evt.deltaY > 0 ? -0.1 : 0.1;
-        handleZoom(delta);
-    };
-
-    // 拖拽画布
-    const handleStageDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
-        if (tool === 'pan') {
-            setPosition({
-                x: e.target.x(),
-                y: e.target.y()
-            });
-        }
     };
 
     // 撤销
@@ -290,7 +405,7 @@ function AnnotationEditorInner({ imageUrl, onApply, onCancel }: AnnotationEditor
         }
     };
 
-    // 清除所有
+    // 清除全部
     const handleClear = () => {
         setLines([]);
         setTexts([]);
@@ -298,74 +413,55 @@ function AnnotationEditorInner({ imageUrl, onApply, onCancel }: AnnotationEditor
 
     // 应用标注
     const handleApply = () => {
-        const stage = stageRef.current;
-        if (!stage || !image) return;
+        const img = imageRef.current;
+        if (!img) return;
 
-        // 创建一个临时画布，使用原始图片尺寸
-        const tempStage = new Konva.Stage({
-            container: document.createElement('div'),
-            width: image.width,
-            height: image.height
-        });
-
-        const tempLayer = new Konva.Layer();
-        tempStage.add(tempLayer);
+        // 创建临时画布，使用原始图片尺寸
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = img.width;
+        tempCanvas.height = img.height;
+        const ctx = tempCanvas.getContext('2d');
+        if (!ctx) return;
 
         // 绘制背景图片
-        const bgImage = new Konva.Image({
-            image: image,
-            x: 0,
-            y: 0,
-            width: image.width,
-            height: image.height
-        });
-        tempLayer.add(bgImage);
+        ctx.drawImage(img, 0, 0);
 
         // 绘制所有线条
         lines.forEach(line => {
-            const konvaLine = new Konva.Line({
-                points: line.points,
-                stroke: line.color,
-                strokeWidth: line.strokeWidth,
-                lineCap: 'round',
-                lineJoin: 'round'
-            });
-            tempLayer.add(konvaLine);
+            if (line.points.length < 4) return;
+            ctx.beginPath();
+            ctx.strokeStyle = line.color;
+            ctx.lineWidth = line.strokeWidth;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.moveTo(line.points[0], line.points[1]);
+            for (let i = 2; i < line.points.length; i += 2) {
+                ctx.lineTo(line.points[i], line.points[i + 1]);
+            }
+            ctx.stroke();
         });
 
         // 绘制所有文字
         texts.forEach(text => {
-            const konvaText = new Konva.Text({
-                x: text.x,
-                y: text.y,
-                text: text.text,
-                fontSize: text.fontSize,
-                fill: text.color,
-                fontStyle: 'bold'
-            });
-            tempLayer.add(konvaText);
+            ctx.font = `bold ${text.fontSize}px Arial`;
+            ctx.fillStyle = text.color;
+            ctx.fillText(text.text, text.x, text.y);
         });
 
-        tempLayer.draw();
-
-        const dataUrl = tempStage.toDataURL({ pixelRatio: 1 });
-        tempStage.destroy();
-
+        const dataUrl = tempCanvas.toDataURL('image/png');
         onApply(dataUrl);
     };
 
-    // 计算文字输入框位置（屏幕坐标）
-    const getTextInputScreenPosition = () => {
+    // 计算文字输入框屏幕位置
+    const getTextInputScreenPos = () => {
         if (!editingText) return { left: 0, top: 0 };
-        return {
-            left: editingText.x * scale + position.x,
-            top: editingText.y * scale + position.y
-        };
+        const screenPos = imageToScreen(editingText.x, editingText.y);
+        return { left: screenPos.x, top: screenPos.y };
     };
 
-    const textInputPos = getTextInputScreenPosition();
+    const textInputPos = getTextInputScreenPos();
 
-    // 加载中状态
+    // 加载中
     if (loadingState === 'loading') {
         return (
             <div className="annotation-editor-overlay">
@@ -380,9 +476,8 @@ function AnnotationEditorInner({ imageUrl, onApply, onCancel }: AnnotationEditor
                             </button>
                         </div>
                     </div>
-                    <div className="annotation-canvas-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div className="annotation-canvas-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: canvasWidth, height: canvasHeight }}>
                         <div style={{ color: 'var(--color-text-secondary)', textAlign: 'center' }}>
-                            <div className="loading-spinner" style={{ width: 40, height: 40, border: '3px solid var(--color-border)', borderTop: '3px solid var(--color-accent)', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
                             正在加载图片...
                         </div>
                     </div>
@@ -391,7 +486,7 @@ function AnnotationEditorInner({ imageUrl, onApply, onCancel }: AnnotationEditor
         );
     }
 
-    // 错误状态
+    // 错误
     if (loadingState === 'error') {
         return (
             <div className="annotation-editor-overlay">
@@ -406,9 +501,8 @@ function AnnotationEditorInner({ imageUrl, onApply, onCancel }: AnnotationEditor
                             </button>
                         </div>
                     </div>
-                    <div className="annotation-canvas-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div className="annotation-canvas-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: canvasWidth, height: canvasHeight }}>
                         <div style={{ color: 'var(--color-text-secondary)', textAlign: 'center' }}>
-                            <AlertCircle size={48} style={{ marginBottom: 16, color: 'var(--color-error)' }} />
                             <p>{errorMessage}</p>
                             <button className="annotation-btn-cancel" onClick={onCancel} style={{ marginTop: 16 }}>
                                 <X size={16} /> 返回
@@ -489,7 +583,7 @@ function AnnotationEditorInner({ imageUrl, onApply, onCancel }: AnnotationEditor
                             ))}
                         </div>
 
-                        {/* 字体大小（文字模式） */}
+                        {/* 字体大小 */}
                         {tool === 'text' && (
                             <select
                                 className="annotation-font-select"
@@ -531,84 +625,23 @@ function AnnotationEditorInner({ imageUrl, onApply, onCancel }: AnnotationEditor
                     </div>
                 </div>
 
-                {/* Konva 画布 */}
-                <div className="annotation-canvas-container" style={{ position: 'relative', background: '#1a1a1a' }}>
-                    <Stage
-                        ref={stageRef}
-                        width={containerWidth}
-                        height={containerHeight}
+                {/* 画布容器 */}
+                <div className="annotation-canvas-container" ref={containerRef} style={{ position: 'relative' }}>
+                    <canvas
+                        ref={canvasRef}
+                        width={canvasWidth}
+                        height={canvasHeight}
                         onMouseDown={handleMouseDown}
                         onMouseMove={handleMouseMove}
                         onMouseUp={handleMouseUp}
+                        onMouseLeave={handleMouseUp}
                         onWheel={handleWheel}
-                        draggable={tool === 'pan'}
-                        onDragEnd={handleStageDragEnd}
-                        x={position.x}
-                        y={position.y}
-                        scaleX={scale}
-                        scaleY={scale}
-                        style={{ cursor: tool === 'pan' ? 'grab' : tool === 'eraser' ? 'crosshair' : 'default' }}
-                    >
-                        <Layer>
-                            {/* 背景图片 */}
-                            {image && (
-                                <KonvaImage
-                                    image={image}
-                                    x={0}
-                                    y={0}
-                                />
-                            )}
-
-                            {/* 已绘制的线条 */}
-                            {lines.map(line => (
-                                <Line
-                                    key={line.id}
-                                    points={line.points}
-                                    stroke={line.color}
-                                    strokeWidth={line.strokeWidth}
-                                    lineCap="round"
-                                    lineJoin="round"
-                                    onClick={() => handleLineClick(line.id)}
-                                    onTap={() => handleLineClick(line.id)}
-                                    hitStrokeWidth={20}
-                                />
-                            ))}
-
-                            {/* 当前正在绘制的线条 */}
-                            {currentLine.length >= 4 && (
-                                <Line
-                                    points={currentLine}
-                                    stroke={currentColor}
-                                    strokeWidth={strokeWidth}
-                                    lineCap="round"
-                                    lineJoin="round"
-                                />
-                            )}
-
-                            {/* 文字标注 */}
-                            {texts.map(text => (
-                                <Text
-                                    key={text.id}
-                                    x={text.x}
-                                    y={text.y}
-                                    text={text.text}
-                                    fontSize={text.fontSize}
-                                    fill={text.color}
-                                    fontStyle="bold"
-                                    onClick={() => handleTextClick(text)}
-                                    onTap={() => handleTextClick(text)}
-                                    draggable={tool === 'text'}
-                                    onDragEnd={(e) => {
-                                        setTexts(prev => prev.map(t =>
-                                            t.id === text.id
-                                                ? { ...t, x: e.target.x(), y: e.target.y() }
-                                                : t
-                                        ));
-                                    }}
-                                />
-                            ))}
-                        </Layer>
-                    </Stage>
+                        style={{
+                            cursor: tool === 'pan' ? (isPanning ? 'grabbing' : 'grab') :
+                                tool === 'eraser' ? 'crosshair' :
+                                    tool === 'text' ? 'text' : 'crosshair'
+                        }}
+                    />
 
                     {/* 文字输入框 */}
                     {editingText && (
@@ -630,6 +663,7 @@ function AnnotationEditorInner({ imageUrl, onApply, onCancel }: AnnotationEditor
                                         setTextInputValue('');
                                     }
                                 }}
+                                onBlur={confirmTextInput}
                                 placeholder="输入文字..."
                                 autoFocus
                                 style={{
@@ -645,21 +679,12 @@ function AnnotationEditorInner({ imageUrl, onApply, onCancel }: AnnotationEditor
                 {/* 提示 */}
                 <div className="annotation-hint">
                     {tool === 'pen' && '拖动绘制 | 滚轮缩放'}
-                    {tool === 'text' && '点击添加文字 | 点击已有文字编辑 | 拖动文字移动'}
+                    {tool === 'text' && '点击添加文字 | 点击已有文字编辑'}
                     {tool === 'eraser' && '点击线条或文字删除'}
                     {tool === 'pan' && '拖动移动画布 | 滚轮缩放'}
                 </div>
             </div>
         </div>
-    );
-}
-
-// 导出包装了错误边界的组件
-export function AnnotationEditor(props: AnnotationEditorProps) {
-    return (
-        <ErrorBoundary onError={props.onCancel}>
-            <AnnotationEditorInner {...props} />
-        </ErrorBoundary>
     );
 }
 
