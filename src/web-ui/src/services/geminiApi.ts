@@ -164,7 +164,8 @@ async function generateSingleImage(
     prompt: string,
     imageBase64: string,
     apiKey: string,
-    options: GeminiGenerateOptions
+    options: GeminiGenerateOptions,
+    signal?: AbortSignal
 ): Promise<string> {
     const model = options.mode === 'pro' ? MODEL_PRO : MODEL_FLASH;
     const url = `${GEMINI_API_BASE}/${model}:generateContent?key=${apiKey}`;
@@ -178,7 +179,8 @@ async function generateSingleImage(
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
+        signal
     });
 
     if (!response.ok) {
@@ -218,7 +220,8 @@ export async function generateImages(
     apiKey: string,
     count: number,
     options: GeminiGenerateOptions,
-    onProgress?: (completed: number, total: number) => void
+    onProgress?: (completed: number, total: number) => void,
+    signal?: AbortSignal
 ): Promise<GeminiGenerateResult> {
     if (!apiKey) {
         throw new Error('API Key 未配置');
@@ -236,7 +239,7 @@ export async function generateImages(
 
     // 并发生成所有图片
     const tasks = Array.from({ length: count }, (_, i) =>
-        generateSingleImage(prompt, processedImage, apiKey, options)
+        generateSingleImage(prompt, processedImage, apiKey, options, signal)
             .then(result => {
                 onProgress?.(i + 1, count);
                 return result;

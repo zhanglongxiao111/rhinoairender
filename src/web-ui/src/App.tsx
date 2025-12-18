@@ -162,6 +162,8 @@ function App() {
 
     // 截图回调 ref（用于 Promise 解析）
     const captureResolveRef = useRef<((base64: string) => void) | null>(null);
+    // 前端 API 取消控制器
+    const abortControllerRef = useRef<AbortController | null>(null);
 
     // 桥接
     const bridge = useBridge({
@@ -314,6 +316,10 @@ function App() {
         setProgress(0);
         setGeneratedImages([]);
 
+        // 创建取消控制器
+        abortControllerRef.current = new AbortController();
+        const signal = abortControllerRef.current.signal;
+
         // 启动计时器和诙谐消息
         setGenerateStartTime(Date.now());
         setWittyMessage(getWittyMessage('start'));
@@ -371,7 +377,8 @@ function App() {
                     const percent = 30 + Math.round((completed / total) * 50);
                     setProgress(percent);
                     setStatusMessage(`生成中 (${completed}/${total})...`);
-                }
+                },
+                signal
             );
 
             // 步骤3：显示结果
@@ -399,16 +406,33 @@ function App() {
             bridge.getHistory();
 
         } catch (error) {
+            // 如果是用户取消，不显示错误
+            if (error instanceof Error && error.name === 'AbortError') {
+                console.log('[前端 API] 用户取消了生成');
+                return;
+            }
             console.error('[前端 API] 生成失败:', error);
             setError(error instanceof Error ? error.message : '生成失败');
-            setStatus('error');
+            setStatus('idle'); // 改为 idle 而不是 error，让用户可以重试
             setStatusMessage('生成失败');
+        } finally {
+            abortControllerRef.current = null;
         }
     }, [bridge, prompt, source, selectedNamedView, count, resolution, aspectRatio, mode, contrastAdjust, longEdge, settings.apiKey]);
 
     // 取消
     const handleCancel = useCallback(() => {
+        // 取消前端 API 请求
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
+        }
+        // 同时取消后端操作（如截图）
         bridge.cancel();
+        // 重置状态
+        setStatus('idle');
+        setStatusMessage('已取消');
+        setProgress(0);
     }, [bridge]);
 
     // 打开文件夹
