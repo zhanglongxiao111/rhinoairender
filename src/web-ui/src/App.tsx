@@ -1,4 +1,22 @@
 import { useState, useCallback, useEffect } from 'react';
+import {
+    Settings2,
+    ScanEye,
+    List,
+    LayoutDashboard,
+    History as HistoryIcon,
+    Star,
+    RefreshCw,
+    Copy,
+    FolderOpen,
+    X,
+    ArrowRight,
+    Columns,
+    Folder,
+    Moon,
+    Sun,
+    Cloud
+} from 'lucide-react';
 import { useBridge } from './hooks/useBridge';
 import type {
     AppStatus,
@@ -104,6 +122,7 @@ function App() {
     // 数据状态
     const [namedViews, setNamedViews] = useState<string[]>([]);
     const [previewImage, setPreviewImage] = useState<string | null>(null);
+    const [referenceImages, setReferenceImages] = useState<string[]>([]); // 参考图列表（base64）
     const [generatedImages, setGeneratedImages] = useState<string[]>([]);
     const [history, setHistory] = useState<HistoryItem[]>([]);
     const [selectedHistoryItem, setSelectedHistoryItem] = useState<HistoryItem | null>(null);
@@ -118,7 +137,8 @@ function App() {
     const [wittyMessage, setWittyMessage] = useState(''); // 诙谐加载消息
     const [generateStartTime, setGenerateStartTime] = useState<number | null>(null); // 生成开始时间
     const [elapsedTime, setElapsedTime] = useState('00:00.00'); // 已用时间显示
-    const [isDarkMode, setIsDarkMode] = useState(true); // 主题模式
+    const [themeMode, setThemeMode] = useState<'auto' | 'light' | 'dark'>('auto'); // 主题模式
+    const [rhinoIsDark, setRhinoIsDark] = useState(false); // Rhino主题状态
     const [canvasView, setCanvasView] = useState<'render' | 'source' | 'compare'>('render'); // 画布视图模式
     const [settings, setSettings] = useState<SettingsData>({
         outputMode: 'auto',
@@ -197,6 +217,9 @@ function App() {
             }
             setStatusMessage(data.isFavorite ? '已收藏' : '已取消收藏');
         },
+        onThemeUpdate: (data) => {
+            setRhinoIsDark(data.isDark);
+        },
     });
 
     // 初始化
@@ -205,6 +228,7 @@ function App() {
             bridge.listNamedViews();
             bridge.getSettings();
             bridge.getHistory();
+            bridge.getTheme();
         }, 100);
         return () => clearTimeout(timer);
     }, []);
@@ -236,7 +260,7 @@ function App() {
                 // 70% 概率显示等待消息
                 setWittyMessage(getWittyMessage('waiting'));
             }
-        }, 2500);
+        }, 5000);
 
         return () => clearInterval(messageInterval);
     }, [status]);
@@ -350,11 +374,24 @@ function App() {
         setStatusMessage('已加载历史设置');
     }, []);
 
+    // 计算有效主题
+    const effectiveTheme = themeMode === 'auto' ? (rhinoIsDark ? 'dark' : 'light') : themeMode;
+
+    // 主题切换（循环：light → auto → dark → light）
+    const cycleTheme = useCallback(() => {
+        if (themeMode === 'light') {
+            setThemeMode('auto');
+        } else if (themeMode === 'auto') {
+            setThemeMode('dark');
+        } else {
+            setThemeMode('light');
+        }
+    }, [themeMode]);
 
     const isProcessing = status === 'generating' || status === 'capturing';
 
     return (
-        <div className={`app-swiss ${isDarkMode ? 'dark' : 'light'}`}>
+        <div className={`app-swiss ${effectiveTheme === 'dark' ? 'dark' : 'light'}`}>
             {/* 三栏布局 */}
             <div className="layout-swiss">
                 {/* ============ 左侧面板 ============ */}
@@ -372,10 +409,16 @@ function App() {
                         </div>
                         <button
                             className="btn-theme"
-                            onClick={() => setIsDarkMode(!isDarkMode)}
-                            title={isDarkMode ? '切换浅色模式' : '切换深色模式'}
+                            onClick={cycleTheme}
+                            title={
+                                themeMode === 'light' ? '浅色模式 (点击切换到自动)' :
+                                    themeMode === 'auto' ? `自动模式 (当前${effectiveTheme === 'dark' ? '深色' : '浅色'}，点击切换到深色)` :
+                                        '深色模式 (点击切换到浅色)'
+                            }
                         >
-                            {isDarkMode ? '☀' : '🌙'}
+                            {themeMode === 'light' ? <Sun size={16} /> :
+                                themeMode === 'auto' ? <Cloud size={16} /> :
+                                    <Moon size={16} />}
                         </button>
                     </header>
 
@@ -395,33 +438,93 @@ function App() {
                             />
                         </div>
 
-                        {/* 视图来源 */}
+                        {/* 参考图上传 */}
                         <div className="control-section swiss-grid-b">
-                            <label className="type-label">视图来源 / Source</label>
-                            <div className="option-cards">
+                            <label className="type-label">参考图 / Reference Images</label>
+                            <span className="type-sub">最多 4 张 / Max 4 images</span>
+
+                            {/* 上传区域 */}
+                            <div style={{ marginTop: 'var(--space-3)' }}>
+                                {referenceImages.length < 4 && (
+                                    <label className="reference-upload-label">
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            multiple
+                                            style={{ display: 'none' }}
+                                            onChange={(e) => {
+                                                const files = Array.from(e.target.files || []);
+                                                const remainingSlots = 4 - referenceImages.length;
+                                                const filesToProcess = files.slice(0, remainingSlots);
+
+                                                filesToProcess.forEach(file => {
+                                                    const reader = new FileReader();
+                                                    reader.onload = (event) => {
+                                                        const base64 = event.target?.result as string;
+                                                        setReferenceImages(prev => [...prev, base64]);
+                                                    };
+                                                    reader.readAsDataURL(file);
+                                                });
+                                                e.target.value = '';
+                                            }}
+                                        />
+                                        <div className="reference-upload-button">
+                                            <Folder size={20} />
+                                            <span>点击选择图片 / Click to Upload</span>
+                                        </div>
+                                    </label>
+                                )}
+
+                                {/* 预览缩略图 */}
+                                {referenceImages.length > 0 && (
+                                    <div className="reference-thumbnails">
+                                        {referenceImages.map((image, index) => (
+                                            <div key={index} className="reference-thumbnail">
+                                                <img src={image} alt={`参考图 ${index + 1}`} />
+                                                <button
+                                                    className="reference-delete"
+                                                    onClick={() => {
+                                                        setReferenceImages(prev => prev.filter((_, i) => i !== index));
+                                                    }}
+                                                    title="删除"
+                                                >
+                                                    <X size={14} />
+                                                </button>
+                                                <span className="reference-index">{index + 1}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* 视图来源 */
+                            <div className="control-section swiss-grid-b">
+                                <label className="type-label">视图来源 / Source</label>
+                                <div className="option-cards">
+                                    <button
+                                        className={`option-card ${source === 'active' ? 'active' : ''}`}
+                                        onClick={() => setSource('active')}
+                                    >
+                                        当前视口
+                                        <span className="type-sub">Active Viewport</span>
+                                    </button>
+                                    <button
+                                        className={`option-card ${source === 'named' ? 'active' : ''}`}
+                                        onClick={() => setSource('named')}
+                                    >
+                                        命名视图
+                                        <span className="type-sub">Named View</span>
+                                    </button>
+                                </div>
                                 <button
-                                    className={`option-card ${source === 'active' ? 'active' : ''}`}
-                                    onClick={() => setSource('active')}
+                                    className="btn-capture"
+                                    onClick={handleCapturePreview}
+                                    disabled={isProcessing}
                                 >
-                                    当前视口
-                                    <span className="type-sub">Active Viewport</span>
-                                </button>
-                                <button
-                                    className={`option-card ${source === 'named' ? 'active' : ''}`}
-                                    onClick={() => setSource('named')}
-                                >
-                                    命名视图
-                                    <span className="type-sub">Named View</span>
+                                    <ScanEye size={16} style={{ marginRight: '8px' }} /> 截取当前视图预览 / Capture Preview
                                 </button>
                             </div>
-                            <button
-                                className="btn-capture"
-                                onClick={handleCapturePreview}
-                                disabled={isProcessing}
-                            >
-                                📷 截取当前视图预览 / Capture Preview
-                            </button>
-                        </div>
 
                         {/* 命名视图选择 */}
                         {source === 'named' && (
@@ -433,7 +536,7 @@ function App() {
                                         onClick={() => bridge.listNamedViews()}
                                         title="刷新命名视图列表"
                                     >
-                                        ↻
+                                        <RefreshCw size={12} />
                                     </button>
                                 </label>
                                 {namedViews.length > 0 ? (
@@ -574,7 +677,7 @@ function App() {
                             onClick={() => setShowSettings(true)}
                             title="设置"
                         >
-                            ⚙
+                            <Settings2 size={20} />
                         </button>
                         <button
                             className={`btn-render ${isProcessing ? 'loading' : ''}`}
@@ -584,7 +687,7 @@ function App() {
                             <span className="btn-render-text">
                                 {isProcessing ? '生成中 / Generating...' : '开始渲染 / Render'}
                             </span>
-                            <span className="btn-render-icon">→</span>
+                            <span className="btn-render-icon"><ArrowRight size={18} /></span>
                             {isProcessing && <div className="btn-render-stripe loading-stripe" />}
                         </button>
                     </div>
@@ -596,7 +699,7 @@ function App() {
                     <div className="canvas-toolbar swiss-grid-b">
                         <div className="toolbar-left">
                             <div className="toolbar-file">
-                                <span>📁</span>
+                                <Folder size={14} />
                                 <span className="type-mono">PROJECT_RENDER.3DM</span>
                             </div>
                             <div className="toolbar-divider" />
@@ -626,7 +729,7 @@ function App() {
                                     disabled={!previewImage || generatedImages.length === 0}
                                     title="AB 对比"
                                 >
-                                    ⟷
+                                    <Columns size={16} />
                                 </button>
                                 {isProcessing && (
                                     <button
@@ -681,7 +784,7 @@ function App() {
                                 </>
                             ) : generatedImages.length === 0 && !previewImage ? (
                                 <div className="preview-empty">
-                                    <div className="preview-empty-icon">◎</div>
+                                    <div className="preview-empty-icon"><ScanEye size={32} /></div>
                                     <div className="preview-empty-text">
                                         <div>输入提示词并点击「生成」</div>
                                         <div>或点击「截取预览」查看当前视口</div>
@@ -758,138 +861,146 @@ function App() {
 
                 {/* ============ 右侧历史面板 ============ */}
                 <aside className="panel-right swiss-grid-l">
-                    <div className="panel-header-right swiss-grid-b">
-                        <div>
-                            <h2 className="type-h1 text-lg">SESSION<br />HISTORY</h2>
-                            <span className="type-label">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()}</span>
-                        </div>
-                        <div className="history-header-actions">
-                            <button
-                                className={`btn btn-ghost btn-sm ${historyView === 'list' ? 'active' : ''}`}
-                                onClick={() => setHistoryView('list')}
-                                title="列表视图"
-                                style={{ padding: '0 4px' }}
-                            >
-                                ☰
-                            </button>
-                            <button
-                                className={`btn btn-ghost btn-sm ${historyView === 'masonry' ? 'active' : ''}`}
-                                onClick={() => setHistoryView('masonry')}
-                                title="瀑布流视图"
-                                style={{ padding: '0 4px' }}
-                            >
-                                ▦
-                            </button>
-                            <button
-                                className={`btn btn-ghost btn-sm ${showFavoritesOnly ? 'active' : ''}`}
-                                onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
-                                title={showFavoritesOnly ? '显示全部' : '只显示收藏'}
-                                style={{ padding: '0 4px' }}
-                            >
-                                {showFavoritesOnly ? '⭐' : '☆'}
-                            </button>
-                        </div>
+                    {/* 侧边栏收缩时的图标 */}
+                    <div className="sidebar-collapsed-icon">
+                        <HistoryIcon size={24} className="text-muted" />
                     </div>
-                    <div className={`history-list ${historyView === 'masonry' ? 'masonry-wrapper' : ''}`}>
-                        {history.filter(item => !showFavoritesOnly || item.isFavorite).length === 0 ? (
-                            <div className="history-empty">
-                                <span>{showFavoritesOnly ? '暂无收藏' : '暂无记录'}</span>
+
+                    {/* 侧边栏完整内容 */}
+                    <div className="sidebar-content">
+                        <div className="panel-header-right swiss-grid-b">
+                            <div>
+                                <h2 className="type-h1 text-lg">SESSION<br />HISTORY</h2>
+                                <span className="type-label">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()}</span>
                             </div>
-                        ) : historyView === 'masonry' ? (
-                            // 瀑布流视图 - 只显示图片，悬停显示时间
-                            history
-                                .filter(item => !showFavoritesOnly || item.isFavorite)
-                                .map((item) => (
-                                    <div
-                                        key={item.id}
-                                        className={`masonry-col history-masonry-item ${selectedHistoryItem?.id === item.id ? 'active' : ''}`}
-                                        onClick={() => {
-                                            setSelectedHistoryItem(item);
-                                            if (item.paths && item.paths.length > 0) {
-                                                bridge.loadHistoryImages(item.paths, item.screenshotPath);
-                                            }
-                                        }}
-                                        onDoubleClick={() => handleUseHistorySettings(item)}
-                                    >
-                                        {item.thumbnails.length > 0 && (
-                                            <img src={`data:image/png;base64,${item.thumbnails[0]}`} alt="" />
-                                        )}
-                                        <div className="history-masonry-overlay">
-                                            <span className="history-masonry-time">
-                                                {new Date(item.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
-                                            </span>
-                                        </div>
-                                        {item.isFavorite && <span className="history-favorite-badge">⭐</span>}
-                                    </div>
-                                ))
-                        ) : (
-                            // 列表视图
-                            history
-                                .filter(item => !showFavoritesOnly || item.isFavorite)
-                                .map((item) => (
-                                    <div
-                                        key={item.id}
-                                        className={`history-item ${selectedHistoryItem?.id === item.id ? 'active' : ''}`}
-                                        onClick={() => {
-                                            setSelectedHistoryItem(item);
-                                            if (item.paths && item.paths.length > 0) {
-                                                bridge.loadHistoryImages(item.paths, item.screenshotPath);
-                                            }
-                                        }}
-                                        onDoubleClick={() => handleUseHistorySettings(item)}
-                                        title="单击查看 · 双击使用此设置"
-                                    >
-                                        <div className="history-thumb">
+                            <div className="history-header-actions">
+                                <button
+                                    className={`btn btn-ghost btn-sm ${historyView === 'list' ? 'active' : ''}`}
+                                    onClick={() => setHistoryView('list')}
+                                    title="列表视图"
+                                    style={{ padding: '0 4px' }}
+                                >
+                                    <List size={16} />
+                                </button>
+                                <button
+                                    className={`btn btn-ghost btn-sm ${historyView === 'masonry' ? 'active' : ''}`}
+                                    onClick={() => setHistoryView('masonry')}
+                                    title="瀑布流视图"
+                                    style={{ padding: '0 4px' }}
+                                >
+                                    <LayoutDashboard size={16} />
+                                </button>
+                                <button
+                                    className={`btn btn-ghost btn-sm ${showFavoritesOnly ? 'active' : ''}`}
+                                    onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                                    title={showFavoritesOnly ? '显示全部' : '只显示收藏'}
+                                    style={{ padding: '0 4px' }}
+                                >
+                                    <Star size={16} fill={showFavoritesOnly ? "currentColor" : "none"} />
+                                </button>
+                            </div>
+                        </div>
+                        <div className={`history-list ${historyView === 'masonry' ? 'masonry-wrapper' : ''}`}>
+                            {history.filter(item => !showFavoritesOnly || item.isFavorite).length === 0 ? (
+                                <div className="history-empty">
+                                    <span>{showFavoritesOnly ? '暂无收藏' : '暂无记录'}</span>
+                                </div>
+                            ) : historyView === 'masonry' ? (
+                                // 瀑布流视图 - 只显示图片，悬停显示时间
+                                history
+                                    .filter(item => !showFavoritesOnly || item.isFavorite)
+                                    .map((item) => (
+                                        <div
+                                            key={item.id}
+                                            className={`masonry-col history-masonry-item ${selectedHistoryItem?.id === item.id ? 'active' : ''}`}
+                                            onClick={() => {
+                                                setSelectedHistoryItem(item);
+                                                if (item.paths && item.paths.length > 0) {
+                                                    bridge.loadHistoryImages(item.paths, item.screenshotPath);
+                                                }
+                                            }}
+                                            onDoubleClick={() => handleUseHistorySettings(item)}
+                                        >
                                             {item.thumbnails.length > 0 && (
                                                 <img src={`data:image/png;base64,${item.thumbnails[0]}`} alt="" />
                                             )}
-                                            {item.isFavorite && <span className="history-favorite-badge">⭐</span>}
+                                            <div className="history-masonry-overlay">
+                                                <span className="history-masonry-time">
+                                                    {new Date(item.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+                                                </span>
+                                            </div>
+                                            {item.isFavorite && <span className="history-favorite-badge"><Star size={10} fill="currentColor" /></span>}
                                         </div>
-                                        <div className="history-info">
-                                            <div className="history-prompt">{item.prompt}</div>
-                                            <div className="history-meta">
-                                                {new Date(item.timestamp).toLocaleDateString('zh-CN')}
+                                    ))
+                            ) : (
+                                // 列表视图
+                                history
+                                    .filter(item => !showFavoritesOnly || item.isFavorite)
+                                    .map((item) => (
+                                        <div
+                                            key={item.id}
+                                            className={`history-item ${selectedHistoryItem?.id === item.id ? 'active' : ''}`}
+                                            onClick={() => {
+                                                setSelectedHistoryItem(item);
+                                                if (item.paths && item.paths.length > 0) {
+                                                    bridge.loadHistoryImages(item.paths, item.screenshotPath);
+                                                }
+                                            }}
+                                            onDoubleClick={() => handleUseHistorySettings(item)}
+                                            title="单击查看 · 双击使用此设置"
+                                        >
+                                            <div className="history-thumb">
+                                                {item.thumbnails.length > 0 && (
+                                                    <img src={`data:image/png;base64,${item.thumbnails[0]}`} alt="" />
+                                                )}
+                                                {item.isFavorite && <span className="history-favorite-badge"><Star size={10} fill="currentColor" /></span>}
+                                            </div>
+                                            <div className="history-info">
+                                                <div className="history-prompt">{item.prompt}</div>
+                                                <div className="history-meta">
+                                                    {new Date(item.timestamp).toLocaleDateString('zh-CN')}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ))
+                                    ))
+                            )}
+                        </div>
+                        {selectedHistoryItem && (
+                            <div className="history-footer">
+                                <div className="history-actions">
+                                    <button
+                                        className={`btn btn-ghost btn-sm ${selectedHistoryItem.isFavorite ? 'active' : ''}`}
+                                        onClick={() => bridge.toggleFavorite(selectedHistoryItem.id)}
+                                        title={selectedHistoryItem.isFavorite ? '取消收藏' : '收藏'}
+                                    >
+                                        <Star size={14} fill={selectedHistoryItem.isFavorite ? "currentColor" : "none"} />
+                                    </button>
+                                    <button
+                                        className="btn btn-ghost btn-sm"
+                                        onClick={() => handleCopyPrompt(selectedHistoryItem.prompt)}
+                                        title="复制提示词"
+                                    >
+                                        <Copy size={14} />
+                                    </button>
+                                    <button
+                                        className="btn btn-secondary btn-sm"
+                                        style={{ flex: 1 }}
+                                        onClick={() => handleUseHistorySettings(selectedHistoryItem)}
+                                    >
+                                        使用此设置
+                                    </button>
+                                    <button
+                                        className="btn btn-ghost btn-sm"
+                                        onClick={() => handleOpenFolder(selectedHistoryItem.paths[0])}
+                                        title="打开文件夹"
+                                        disabled={!selectedHistoryItem.paths.length}
+                                    >
+                                        <FolderOpen size={14} />
+                                    </button>
+                                </div>
+                            </div>
                         )}
                     </div>
-                    {selectedHistoryItem && (
-                        <div className="history-footer">
-                            <div className="history-actions">
-                                <button
-                                    className={`btn btn-ghost btn-sm ${selectedHistoryItem.isFavorite ? 'active' : ''}`}
-                                    onClick={() => bridge.toggleFavorite(selectedHistoryItem.id)}
-                                    title={selectedHistoryItem.isFavorite ? '取消收藏' : '收藏'}
-                                >
-                                    {selectedHistoryItem.isFavorite ? '⭐' : '☆'}
-                                </button>
-                                <button
-                                    className="btn btn-ghost btn-sm"
-                                    onClick={() => handleCopyPrompt(selectedHistoryItem.prompt)}
-                                    title="复制提示词"
-                                >
-                                    📋
-                                </button>
-                                <button
-                                    className="btn btn-secondary btn-sm"
-                                    style={{ flex: 1 }}
-                                    onClick={() => handleUseHistorySettings(selectedHistoryItem)}
-                                >
-                                    使用此设置
-                                </button>
-                                <button
-                                    className="btn btn-ghost btn-sm"
-                                    onClick={() => handleOpenFolder(selectedHistoryItem.paths[0])}
-                                    title="打开文件夹"
-                                    disabled={!selectedHistoryItem.paths.length}
-                                >
-                                    📁
-                                </button>
-                            </div>
-                        </div>
-                    )}
                 </aside>
             </div >
 
@@ -901,7 +1012,7 @@ function App() {
                             <div className="modal-header">
                                 <div className="modal-title">设置</div>
                                 <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setShowSettings(false)}>
-                                    ✕
+                                    <X size={16} />
                                 </button>
                             </div>
                             <div className="modal-body">
@@ -1075,7 +1186,7 @@ function App() {
                                 </div>
                             </div>
 
-                            <button className="lightbox-close" onClick={() => setLightboxImage(null)}>×</button>
+                            <button className="lightbox-close" onClick={() => setLightboxImage(null)}><X size={24} /></button>
                             <div className="compare-hint">← 拖动分割线对比 →</div>
                         </div>
                     </div>

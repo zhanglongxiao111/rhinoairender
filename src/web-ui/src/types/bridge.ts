@@ -84,6 +84,10 @@ export interface ErrorResponse {
     details?: string;
 }
 
+export interface ThemeUpdateResponse {
+    isDark: boolean;
+}
+
 export interface HistoryItem {
     id: string;
     timestamp: string;

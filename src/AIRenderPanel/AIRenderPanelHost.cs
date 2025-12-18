@@ -395,6 +395,7 @@ namespace AIRenderPanel
             _ = _messageHandler?.HandleMessageAsync(JsonConvert.SerializeObject(new BridgeMessage { Type = "listNamedViews" }));
             _ = _messageHandler?.HandleMessageAsync(JsonConvert.SerializeObject(new BridgeMessage { Type = "getSettings" }));
             _ = _messageHandler?.HandleMessageAsync(JsonConvert.SerializeObject(new BridgeMessage { Type = "getHistory" }));
+            _ = _messageHandler?.HandleMessageAsync(JsonConvert.SerializeObject(new BridgeMessage { Type = "getTheme" }));
         }
 
         private async void OnWebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)

@@ -19,6 +19,7 @@ namespace AIRenderPanel.Bridge
         private readonly SettingsService _settingsService;
         private readonly ProviderManager _providerManager;
         private readonly FavoritesService _favoritesService;
+        private readonly ThemeService _themeService;
         
         private CancellationTokenSource? _currentCts;
 
@@ -31,6 +32,7 @@ namespace AIRenderPanel.Bridge
             _settingsService = new SettingsService();
             _providerManager = new ProviderManager(_settingsService);
             _favoritesService = new FavoritesService();
+            _themeService = new ThemeService();
         }
 
         /// <summary>
@@ -85,6 +87,10 @@ namespace AIRenderPanel.Bridge
 
                     case "toggleFavorite":
                         HandleToggleFavorite(message.Data);
+                        break;
+
+                    case "getTheme":
+                        HandleGetTheme();
                         break;
 
                     default:
@@ -491,6 +497,24 @@ namespace AIRenderPanel.Bridge
             catch (Exception ex)
             {
                 SendError("切换收藏失败", ex.Message);
+            }
+        }
+
+        private void HandleGetTheme()
+        {
+            try
+            {
+                var isDark = _themeService.IsDarkTheme();
+                _sendMessage("themeUpdate", new ThemeUpdateResponse
+                {
+                    IsDark = isDark
+                });
+                
+                RhinoApp.WriteLine($"[AI渲染] 主题检测: {(isDark ? "深色" : "浅色")}");
+            }
+            catch (Exception ex)
+            {
+                SendError("获取主题失败", ex.Message);
             }
         }
     }

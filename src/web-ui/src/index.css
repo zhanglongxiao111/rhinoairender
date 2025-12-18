@@ -46,9 +46,10 @@
   --space-10: 64px;
 
   /* 圆角 - 瑞士风格：完全无圆角 */
-  --radius-sm: 0;
-  --radius-md: 0;
-  --radius-lg: 0;
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
 
   /* 阴影 */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
@@ -150,7 +151,6 @@ body {
 
 ::-webkit-scrollbar-thumb {
   background: var(--color-border);
-  border-radius: 2px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -832,6 +832,68 @@ body {
   flex-direction: column;
   background: var(--color-bg-primary);
   overflow: hidden;
+  position: relative;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-collapsed-icon {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 113px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding-bottom: var(--space-6);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+
+.sidebar-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  transition: opacity 0.3s;
+}
+
+/* 响应式收缩逻辑 */
+@media (max-width: 1200px) {
+  .panel-right {
+    width: 72px;
+  }
+
+  .panel-right .sidebar-content {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .panel-right .sidebar-collapsed-icon {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .panel-right:hover {
+    width: 300px;
+    position: absolute;
+    right: 0;
+    height: 100%;
+    z-index: 50;
+    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+  }
+
+  .panel-right:hover .sidebar-content {
+    opacity: 1;
+    pointer-events: auto;
+    transition-delay: 0.1s;
+  }
+
+  .panel-right:hover .sidebar-collapsed-icon {
+    opacity: 0;
+  }
 }
 
 .panel-header-right {
@@ -1306,6 +1368,93 @@ body {
   height: 1px;
   background: var(--color-border);
   margin: var(--space-5) 0;
+}
+
+/* =============================================
+   参考图上传
+   ============================================= */
+.reference-upload-label {
+  display: block;
+  cursor: pointer;
+}
+
+.reference-upload-button {
+  border: 2px dashed var(--color-border);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  transition: all var(--transition-fast);
+  color: var(--color-text-secondary);
+}
+
+.reference-upload-button:hover {
+  border-color: var(--color-accent);
+  background: var(--color-bg-hover);
+  color: var(--color-accent);
+}
+
+.reference-thumbnails {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.reference-thumbnail {
+  position: relative;
+  aspect-ratio: 1;
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+  background: var(--color-bg-tertiary);
+}
+
+.reference-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.reference-delete {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  background: rgba(0, 0, 0, 0.7);
+  border: none;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.reference-thumbnail:hover .reference-delete {
+  opacity: 1;
+}
+
+.reference-delete:hover {
+  background: var(--color-error);
+}
+
+.reference-index {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  background: var(--color-accent);
+  color: white;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: bold;
+  font-family: var(--font-mono);
 }
 
 /* =============================================

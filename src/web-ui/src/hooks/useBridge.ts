@@ -11,6 +11,7 @@ import type {
     GenerateResultResponse,
     ErrorResponse,
     HistoryUpdateResponse,
+    ThemeUpdateResponse,
 } from '../types/bridge';
 
 export interface BridgeCallbacks {
@@ -23,6 +24,7 @@ export interface BridgeCallbacks {
     onHistoryUpdate?: (data: HistoryUpdateResponse) => void;
     onHistoryImages?: (data: { images: string[], screenshot?: string }) => void;
     onFavoriteStatus?: (data: { historyId: string, isFavorite: boolean }) => void;
+    onThemeUpdate?: (data: ThemeUpdateResponse) => void;
 }
 
 /**
@@ -89,6 +91,9 @@ export function useBridge(callbacks: BridgeCallbacks) {
                     case 'favoriteStatus':
                         callbacksRef.current.onFavoriteStatus?.(message.data as { historyId: string, isFavorite: boolean });
                         break;
+                    case 'themeUpdate':
+                        callbacksRef.current.onThemeUpdate?.(message.data as ThemeUpdateResponse);
+                        break;
                     default:
                         console.warn('[Bridge] 未知消息类型:', message.type);
                 }
@@ -146,6 +151,10 @@ export function useBridge(callbacks: BridgeCallbacks) {
         postMessage('toggleFavorite', { historyId });
     }, [postMessage]);
 
+    const getTheme = useCallback(() => {
+        postMessage('getTheme');
+    }, [postMessage]);
+
     return {
         postMessage,
         listNamedViews,
@@ -158,5 +167,6 @@ export function useBridge(callbacks: BridgeCallbacks) {
         getHistory,
         loadHistoryImages,
         toggleFavorite,
+        getTheme,
     };
 }

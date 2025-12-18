@@ -96,6 +96,12 @@ namespace AIRenderPanel.Bridge
         public int ContrastAdjust { get; set; } = -92;
 
         /// <summary>
+        /// 参考图列表（base64 编码）
+        /// </summary>
+        [JsonProperty("referenceImages")]
+        public string[]? ReferenceImages { get; set; }
+
+        /// <summary>
         /// 截图长边尺寸（像素）
         /// 与 AspectRatio 配合使用，短边自动计算
         /// 如果为 0 或不传，则使用 Width/Height
@@ -350,6 +356,15 @@ namespace AIRenderPanel.Bridge
 
         [JsonProperty("screenshot")]
         public string? Screenshot { get; set; }
+    }
+
+    /// <summary>
+    /// 主题更新响应
+    /// </summary>
+    public class ThemeUpdateResponse
+    {
+        [JsonProperty("isDark")]
+        public bool IsDark { get; set; }
     }
 
     #endregion
