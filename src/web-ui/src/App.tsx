@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
     Settings2,
     ScanEye,
@@ -19,6 +19,7 @@ import {
     Pencil
 } from 'lucide-react';
 import { useBridge } from './hooks/useBridge';
+import { generateImages } from './services/geminiApi';
 import { AnnotationEditor } from './components/AnnotationEditor';
 
 import type {
@@ -159,6 +160,9 @@ function App() {
     // 错误状态
     const [error, setError] = useState<string | null>(null);
 
+    // 截图回调 ref（用于 Promise 解析）
+    const captureResolveRef = useRef<((base64: string) => void) | null>(null);
+
     // 桥接
     const bridge = useBridge({
         onNamedViews: (data) => {
@@ -226,6 +230,13 @@ function App() {
         onThemeUpdate: (data) => {
             setRhinoIsDark(data.isDark);
         },
+        onCaptureForApiResult: (data) => {
+            // 调用存储的 resolve 函数
+            if (captureResolveRef.current) {
+                captureResolveRef.current(data.base64);
+                captureResolveRef.current = null;
+            }
+        },
     });
 
     // 初始化
@@ -286,15 +297,20 @@ function App() {
         } as any);
     }, [bridge, source, selectedNamedView, longEdge, aspectRatio]);
 
-    // 生成 - 支持并发
-    const handleGenerate = useCallback(() => {
+    // 生成 - 使用前端 API 调用（绕过 Rhino.exe 网络限制）
+    const handleGenerate = useCallback(async () => {
         if (!prompt.trim()) {
             setError('请输入提示词');
             return;
         }
 
+        if (!settings.apiKey) {
+            setError('请先在设置中配置 API Key');
+            return;
+        }
+
         setStatus('generating');
-        setStatusMessage('正在生成...');
+        setStatusMessage('正在截图...');
         setProgress(0);
         setGeneratedImages([]);
 
@@ -303,22 +319,92 @@ function App() {
         setWittyMessage(getWittyMessage('start'));
         setElapsedTime('00:00.00');
 
-        // 传递所有参数，包括模式和对比度
-        bridge.generate({
-            prompt: prompt.trim(),
-            source,
-            namedView: source === 'named' ? selectedNamedView : undefined,
-            width: 1024,
-            height: 1024,
-            count,
-            resolution,
-            aspectRatio: aspectRatio || undefined,
-            mode,
-            contrastAdjust: mode === 'flash' ? contrastAdjust : undefined,
-            longEdge: longEdge > 0 ? longEdge : undefined,
-            referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
-        } as any);
-    }, [bridge, prompt, source, selectedNamedView, count, resolution, aspectRatio, mode, contrastAdjust, longEdge, referenceImages]);
+        try {
+            // 步骤1：获取截图
+            setStatusMessage('正在截图...');
+            setProgress(10);
+
+            // 使用 Promise 包装 Bridge 回调
+            const screenshotBase64 = await new Promise<string>((resolve, reject) => {
+                const timeout = setTimeout(() => reject(new Error('截图超时')), 30000);
+
+                // 存储 resolve 函数到 ref
+                captureResolveRef.current = (base64: string) => {
+                    clearTimeout(timeout);
+                    resolve(base64);
+                };
+
+                bridge.captureForApi({
+                    prompt: prompt.trim(),
+                    source,
+                    namedView: source === 'named' ? selectedNamedView : undefined,
+                    width: 1024,
+                    height: 1024,
+                    count,
+                    longEdge: longEdge > 0 ? longEdge : undefined,
+                    aspectRatio: aspectRatio || undefined,
+                } as any);
+            });
+
+            // 更新预览图
+            setPreviewImage(`data:image/png;base64,${screenshotBase64}`);
+
+            // 步骤2：调用前端 Gemini API
+            setStatusMessage('正在生成...');
+            setProgress(30);
+
+            const modeText = mode === 'pro' ? '专业模式' : '快速模式';
+            console.log(`[前端 API] 使用 ${modeText} 生成 ${count} 张图片`);
+
+            const result = await generateImages(
+                prompt.trim(),
+                screenshotBase64,
+                settings.apiKey,
+                count,
+                {
+                    mode: mode === 'flash' ? 'flash' : 'pro',
+                    resolution,
+                    aspectRatio: aspectRatio || undefined,
+                    contrastAdjust: mode === 'flash' ? contrastAdjust : undefined,
+                },
+                (completed, total) => {
+                    const percent = 30 + Math.round((completed / total) * 50);
+                    setProgress(percent);
+                    setStatusMessage(`生成中 (${completed}/${total})...`);
+                }
+            );
+
+            // 步骤3：显示结果
+            setGeneratedImages(result.images.map(img => `data:image/png;base64,${img}`));
+            setProgress(85);
+            setStatusMessage('正在保存...');
+
+            // 步骤4：保存到后端
+            bridge.saveGeneratedImages({
+                imagesBase64: result.images,
+                screenshotBase64,
+                prompt: prompt.trim(),
+                source,
+                namedView: source === 'named' ? selectedNamedView : undefined,
+                width: 1024,
+                height: 1024,
+                providerName: result.model,
+            });
+
+            setStatus('idle');
+            setStatusMessage('生成完成');
+            setProgress(100);
+
+            // 刷新历史
+            bridge.getHistory();
+
+        } catch (error) {
+            console.error('[前端 API] 生成失败:', error);
+            setError(error instanceof Error ? error.message : '生成失败');
+            setStatus('error');
+            setStatusMessage('生成失败');
+        }
+    }, [bridge, prompt, source, selectedNamedView, count, resolution, aspectRatio, mode, contrastAdjust, longEdge, settings.apiKey]);
 
     // 取消
     const handleCancel = useCallback(() => {

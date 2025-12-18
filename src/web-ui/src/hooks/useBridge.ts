@@ -25,6 +25,8 @@ export interface BridgeCallbacks {
     onHistoryImages?: (data: { images: string[], screenshot?: string }) => void;
     onFavoriteStatus?: (data: { historyId: string, isFavorite: boolean }) => void;
     onThemeUpdate?: (data: ThemeUpdateResponse) => void;
+    onCaptureForApiResult?: (data: { base64: string, width: number, height: number }) => void;
+    onSaveResult?: (data: { paths: string[], success: boolean }) => void;
 }
 
 /**
@@ -94,6 +96,12 @@ export function useBridge(callbacks: BridgeCallbacks) {
                     case 'themeUpdate':
                         callbacksRef.current.onThemeUpdate?.(message.data as ThemeUpdateResponse);
                         break;
+                    case 'captureForApiResult':
+                        callbacksRef.current.onCaptureForApiResult?.(message.data as { base64: string, width: number, height: number });
+                        break;
+                    case 'saveResult':
+                        callbacksRef.current.onSaveResult?.(message.data as { paths: string[], success: boolean });
+                        break;
                     default:
                         console.warn('[Bridge] 未知消息类型:', message.type);
                 }
@@ -155,6 +163,25 @@ export function useBridge(callbacks: BridgeCallbacks) {
         postMessage('getTheme');
     }, [postMessage]);
 
+    // 仅截图（用于前端 API 调用）
+    const captureForApi = useCallback((request: GenerateRequest) => {
+        postMessage('captureForApi', request);
+    }, [postMessage]);
+
+    // 保存前端生成的图片
+    const saveGeneratedImages = useCallback((data: {
+        imagesBase64: string[],
+        screenshotBase64: string,
+        prompt: string,
+        source: string,
+        namedView?: string,
+        width: number,
+        height: number,
+        providerName: string
+    }) => {
+        postMessage('saveGeneratedImages', data);
+    }, [postMessage]);
+
     return {
         postMessage,
         listNamedViews,
@@ -168,5 +195,7 @@ export function useBridge(callbacks: BridgeCallbacks) {
         loadHistoryImages,
         toggleFavorite,
         getTheme,
+        captureForApi,
+        saveGeneratedImages,
     };
 }

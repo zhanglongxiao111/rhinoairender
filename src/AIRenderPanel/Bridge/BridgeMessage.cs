@@ -367,5 +367,35 @@ namespace AIRenderPanel.Bridge
         public bool IsDark { get; set; }
     }
 
+    /// <summary>
+    /// 保存前端生成图片请求
+    /// </summary>
+    public class SaveGeneratedImagesRequest
+    {
+        [JsonProperty("imagesBase64")]
+        public List<string> ImagesBase64 { get; set; } = new();
+
+        [JsonProperty("screenshotBase64")]
+        public string ScreenshotBase64 { get; set; } = string.Empty;
+
+        [JsonProperty("prompt")]
+        public string Prompt { get; set; } = string.Empty;
+
+        [JsonProperty("source")]
+        public string Source { get; set; } = "active";
+
+        [JsonProperty("namedView")]
+        public string? NamedView { get; set; }
+
+        [JsonProperty("width")]
+        public int Width { get; set; }
+
+        [JsonProperty("height")]
+        public int Height { get; set; }
+
+        [JsonProperty("providerName")]
+        public string ProviderName { get; set; } = "Gemini";
+    }
+
     #endregion
 }

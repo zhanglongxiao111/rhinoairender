@@ -89,6 +89,14 @@ namespace AIRenderPanel.Bridge
                         HandleToggleFavorite(message.Data);
                         break;
 
+                    case "captureForApi":
+                        HandleCaptureForApi(message.Data);
+                        break;
+
+                    case "saveGeneratedImages":
+                        HandleSaveGeneratedImages(message.Data);
+                        break;
+
                     case "getTheme":
                         HandleGetTheme();
                         break;
@@ -497,6 +505,124 @@ namespace AIRenderPanel.Bridge
             catch (Exception ex)
             {
                 SendError("切换收藏失败", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// 仅截图（不调用 API），返回 base64 用于前端 API 调用
+        /// </summary>
+        private void HandleCaptureForApi(object? data)
+        {
+            if (data == null) return;
+
+            var request = JsonConvert.DeserializeObject<GenerateRequest>(data.ToString()!);
+            if (request == null) return;
+
+            try
+            {
+                byte[] imageBytes;
+                
+                // 根据 captureMode 决定如何获取截图尺寸
+                if (request.LongEdge > 0)
+                {
+                    if (request.Source == "named" && !string.IsNullOrEmpty(request.NamedView))
+                    {
+                        imageBytes = _captureService.CaptureNamedViewWithAspect(
+                            request.NamedView,
+                            request.AspectRatio,
+                            request.LongEdge,
+                            false
+                        );
+                    }
+                    else
+                    {
+                        imageBytes = _captureService.CaptureActiveViewportWithAspect(
+                            request.AspectRatio,
+                            request.LongEdge,
+                            false
+                        );
+                    }
+                }
+                else
+                {
+                    if (request.Source == "named" && !string.IsNullOrEmpty(request.NamedView))
+                    {
+                        imageBytes = _captureService.CaptureNamedView(
+                            request.NamedView, 
+                            request.Width, 
+                            request.Height, 
+                            false
+                        );
+                    }
+                    else
+                    {
+                        imageBytes = _captureService.CaptureActiveViewport(
+                            request.Width, 
+                            request.Height, 
+                            false
+                        );
+                    }
+                }
+
+                var base64 = Convert.ToBase64String(imageBytes);
+                _sendMessage("captureForApiResult", new
+                {
+                    Base64 = base64,
+                    Width = request.Width,
+                    Height = request.Height
+                });
+
+                RhinoApp.WriteLine($"[AI渲染] 截图完成，大小: {imageBytes.Length} 字节");
+            }
+            catch (Exception ex)
+            {
+                SendError("截图失败", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// 保存前端生成的图片
+        /// </summary>
+        private void HandleSaveGeneratedImages(object? data)
+        {
+            if (data == null) return;
+
+            try
+            {
+                var request = JsonConvert.DeserializeObject<SaveGeneratedImagesRequest>(data.ToString()!);
+                if (request == null) return;
+
+                // 将 base64 转换为字节数组
+                var images = request.ImagesBase64.Select(Convert.FromBase64String).ToList();
+                var screenshotBytes = Convert.FromBase64String(request.ScreenshotBase64);
+
+                // 保存图片
+                var (savedPaths, _) = _historyService.SaveGeneratedImages(
+                    images,
+                    screenshotBytes,
+                    request.Prompt,
+                    request.Source,
+                    request.NamedView,
+                    request.Width,
+                    request.Height,
+                    request.ProviderName
+                );
+
+                // 发送结果
+                _sendMessage("saveResult", new
+                {
+                    Paths = savedPaths,
+                    Success = true
+                });
+
+                // 更新历史
+                HandleGetHistory();
+
+                RhinoApp.WriteLine($"[AI渲染] 已保存 {savedPaths.Count} 张图片");
+            }
+            catch (Exception ex)
+            {
+                SendError("保存图片失败", ex.Message);
             }
         }
 
