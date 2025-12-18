@@ -25,7 +25,7 @@ export interface BridgeCallbacks {
     onHistoryImages?: (data: { images: string[], screenshot?: string }) => void;
     onFavoriteStatus?: (data: { historyId: string, isFavorite: boolean }) => void;
     onThemeUpdate?: (data: ThemeUpdateResponse) => void;
-    onCaptureForApiResult?: (data: { base64: string, width: number, height: number }) => void;
+    onCaptureForApiResult?: (data: { Base64: string, Width: number, Height: number }) => void;
     onSaveResult?: (data: { paths: string[], success: boolean }) => void;
 }
 
@@ -97,7 +97,7 @@ export function useBridge(callbacks: BridgeCallbacks) {
                         callbacksRef.current.onThemeUpdate?.(message.data as ThemeUpdateResponse);
                         break;
                     case 'captureForApiResult':
-                        callbacksRef.current.onCaptureForApiResult?.(message.data as { base64: string, width: number, height: number });
+                        callbacksRef.current.onCaptureForApiResult?.(message.data as { Base64: string, Width: number, Height: number });
                         break;
                     case 'saveResult':
                         callbacksRef.current.onSaveResult?.(message.data as { paths: string[], success: boolean });

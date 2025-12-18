@@ -233,7 +233,7 @@ function App() {
         onCaptureForApiResult: (data) => {
             // 调用存储的 resolve 函数
             if (captureResolveRef.current) {
-                captureResolveRef.current(data.base64);
+                captureResolveRef.current(data.Base64);
                 captureResolveRef.current = null;
             }
         },
