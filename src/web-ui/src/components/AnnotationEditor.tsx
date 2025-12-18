@@ -104,7 +104,7 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
     const [tool, setTool] = useState<Tool>('pen');
     const [currentColor, setCurrentColor] = useState('#F04E30');
     const [currentFontSize, setCurrentFontSize] = useState(32);
-    const [strokeWidth] = useState(3);
+    const [strokeWidth, setStrokeWidth] = useState(3);
 
     // 缩放和平移
     const [scale, setScale] = useState(1);
@@ -310,19 +310,21 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
                     return;
                 }
             }
-        } else if (tool === 'text' && ctx) {
-            // 检查是否点击了现有文字
-            for (let i = texts.length - 1; i >= 0; i--) {
-                if (isPointInTextBounds(imgPos.x, imgPos.y, texts[i], ctx)) {
-                    // 开始编辑现有文字
-                    setEditingText({ id: texts[i].id, x: texts[i].x, y: texts[i].y });
-                    setTextInputValue(texts[i].text);
-                    setCurrentColor(texts[i].color);
-                    setCurrentFontSize(texts[i].fontSize);
-                    return;
+        } else if (tool === 'text') {
+            // 检查是否点击了现有文字（需要 ctx）
+            if (ctx) {
+                for (let i = texts.length - 1; i >= 0; i--) {
+                    if (isPointInTextBounds(imgPos.x, imgPos.y, texts[i], ctx)) {
+                        // 开始编辑现有文字
+                        setEditingText({ id: texts[i].id, x: texts[i].x, y: texts[i].y });
+                        setTextInputValue(texts[i].text);
+                        setCurrentColor(texts[i].color);
+                        setCurrentFontSize(texts[i].fontSize);
+                        return;
+                    }
                 }
             }
-            // 添加新文字
+            // 添加新文字（不需要 ctx）
             setEditingText({ id: null, x: imgPos.x, y: imgPos.y });
             setTextInputValue('');
         }
@@ -610,6 +612,22 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
                                     <option key={size} value={size}>{size}px</option>
                                 ))}
                             </select>
+                        )}
+
+                        {/* 笔画粗细 */}
+                        {tool === 'pen' && (
+                            <div className="annotation-stroke-width" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '8px' }}>
+                                <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>粗细:</span>
+                                <input
+                                    type="range"
+                                    min="1"
+                                    max="20"
+                                    value={strokeWidth}
+                                    onChange={(e) => setStrokeWidth(Number(e.target.value))}
+                                    style={{ width: '80px', cursor: 'pointer' }}
+                                />
+                                <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', minWidth: '24px' }}>{strokeWidth}px</span>
+                            </div>
                         )}
 
                         <div className="annotation-divider" />
