@@ -94,6 +94,7 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const imageRef = useRef<HTMLImageElement | null>(null);
+    const imageLoadedRef = useRef(false); // 用于超时检查
 
     // 加载状态
     const [loadingState, setLoadingState] = useState<'loading' | 'loaded' | 'error'>('loading');
@@ -136,11 +137,13 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
         }
 
         setLoadingState('loading');
+        imageLoadedRef.current = false;
         const img = new Image();
         img.crossOrigin = 'anonymous';
 
         img.onload = () => {
             imageRef.current = img;
+            imageLoadedRef.current = true;
             // 自动缩放以适应画布
             const scaleX = (canvasWidth - 40) / img.width;
             const scaleY = (canvasHeight - 40) / img.height;
@@ -155,13 +158,14 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
         };
 
         img.onerror = () => {
+            imageLoadedRef.current = true; // 标记为完成（虽然失败）
             setLoadingState('error');
             setErrorMessage('图片加载失败');
         };
 
-        // 超时处理
+        // 超时处理 - 使用 ref 检查实际状态
         const timeout = setTimeout(() => {
-            if (loadingState === 'loading') {
+            if (!imageLoadedRef.current) {
                 setLoadingState('error');
                 setErrorMessage('图片加载超时');
             }
