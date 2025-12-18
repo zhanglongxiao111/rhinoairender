@@ -1,132 +1,146 @@
-# Rhino 8 AI 渲染面板插件
+# Rhino 8 AI Render Panel
 
-一个 Rhino 8 插件，提供内嵌的 AI 渲染面板，支持视口截图和 AI 图像生成。
+[English](#english) | [中文](#中文)
 
-## 功能特性
+---
 
-- 🎨 **现代化中文 UI** - 可停靠的 Dock Panel，基于 React + WebView2
-- 📷 **视口截图** - 支持活动视口和命名视图截图
-- 🤖 **AI 生成** - 可插拔的 Provider 架构（Mock / Gemini）
-- 📂 **历史管理** - 自动保存生成记录，支持回看
+## English
 
-## 项目结构
+A Rhino 8 plugin that provides an embedded AI rendering panel with viewport capture and AI image generation.
 
-```
-src/
-├── AIRenderPanel/          # C# 插件
-│   ├── Bridge/             # 前后端通信
-│   ├── Providers/          # AI Provider
-│   └── Services/           # 业务服务
-└── web-ui/                 # React 前端
-```
+### ✨ Features
 
-## 开发环境
+- 🎨 **Modern UI** - Dockable panel built with React + WebView2
+- 📷 **Viewport Capture** - Active viewport and named views support
+- 🤖 **Dual Mode AI Generation**
+  - **Pro Mode** (gemini-3-pro) - High quality, up to 4K resolution
+  - **Flash Mode** (gemini-2.5-flash) - Fast generation with contrast preprocessing
+- 🖼️ **Reference Images** - Upload up to 3 reference images for style guidance
+- ✏️ **Annotation Editor** - Draw, add text, and erase on screenshots before generation
+- 📐 **Resolution & Aspect Ratio** - 1K/2K/4K with multiple aspect ratio presets
+- ⭐ **Favorites** - Star and filter your best generations
+- 🌓 **Theme Sync** - Automatically follows Rhino's light/dark theme
+- 📂 **History Management** - Auto-save with browsing and re-generation
+
+### 📋 Requirements
 
 - Rhino 8 (Windows)
 - .NET 7.0 SDK
 - Node.js 18+
-- Visual Studio 2022 或 Rider
 
-## 快速开始
-
-### 1. 安装前端依赖
+### 🚀 Quick Start
 
 ```bash
-cd src/web-ui
-npm install
-```
-
-### 2. 启动前端开发服务器
-
-```bash
-npm run dev
-```
-
-### 3. 构建 C# 插件
-
-```bash
-cd src/AIRenderPanel
-dotnet build
-```
-
-### 4. 加载插件到 Rhino
-
-1. 打开 Rhino 8
-2. 运行命令 `PlugInManager`
-3. 点击"安装"并选择生成的 `.rhp` 文件
-4. 重启 Rhino
-
-### 5. 使用插件
-
-在 Rhino 命令行输入：
-
-```
-AIRenderPanel
-```
-
-## 配置
-
-设置文件位于：`%AppData%/AIRenderPanel/settings.json`
-
-- `provider`: 使用的 AI Provider（`mock` 或 `gemini`）
-- `apiKey`: Gemini API Key
-- `outputMode`: 输出目录模式（`auto` 跟随 3dm 文件，`fixed` 固定目录）
-- `outputFolder`: 固定输出目录路径
-
-## 输出目录
-
-默认情况下，生成的图片保存在：
-
-```
-<3dm文件目录>/_AI_Renders/<时间戳>_<会话ID>/
-```
-
-## 开发调试
-
-1. 启动 Vite 开发服务器（`npm run dev`）
-2. 在 Rhino 中加载插件
-3. WebView2 会自动连接到 `http://localhost:5173`
-4. 在设置中启用"开发者模式"可打开 DevTools
-
-## 构建生产版本
-
-### 一键构建（推荐）
-
-```powershell
-# 构建 Debug 版本
+# Build everything
 ./build.ps1
 
-# 构建 Release 版本
-./build.ps1 -Release
-
-# 清理构建产物
-./build.ps1 -Clean
-
-# 仅构建后端（跳过前端）
-./build.ps1 -SkipFrontend
+# Output: dist/AIRenderPanel.rhp
 ```
 
-构建完成后，所有文件会输出到 `dist/` 目录。
+Then in Rhino:
+1. Run `PlugInManager`
+2. Install `dist/AIRenderPanel.rhp`
+3. Restart Rhino
+4. Run command `AIRenderPanel`
 
-### 手动构建
+### ⚙️ Configuration
+
+Settings file: `%AppData%/AIRenderPanel/settings.json`
+
+| Key | Description |
+|-----|-------------|
+| `apiKey` | Gemini API Key |
+| `outputMode` | `auto` (follow .3dm) or `fixed` |
+| `outputFolder` | Custom output directory |
+
+### 🛠️ Development
 
 ```bash
-# 前端
-cd src/web-ui
-npm install
-npm run build
+# Frontend dev server
+cd src/web-ui && npm run dev
 
-# C# 插件
-cd src/AIRenderPanel
-dotnet build -c Release
+# Backend build
+cd src/AIRenderPanel && dotnet build
 ```
 
-## 技术栈
+---
 
-- **后端**: C# / .NET 7 / RhinoCommon
-- **面板**: WebView2 (via Eto.Forms)
-- **前端**: React 18 / TypeScript / Vite
+## 中文
 
-## License
+Rhino 8 AI 渲染面板插件，提供视口截图和 AI 图像生成功能。
+
+### ✨ 功能特性
+
+- 🎨 **现代化界面** - 可停靠面板，基于 React + WebView2
+- 📷 **视口截图** - 支持活动视口和命名视图
+- 🤖 **双模式生成**
+  - **专业模式** (gemini-3-pro) - 高质量，支持 4K
+  - **快速模式** (gemini-2.5-flash) - 快速生成，带对比度预处理
+- 🖼️ **参考图** - 最多上传 3 张参考图用于风格引导
+- ✏️ **标注编辑器** - 在截图上绘制、添加文字、擦除
+- 📐 **分辨率和宽高比** - 1K/2K/4K，多种宽高比预设
+- ⭐ **收藏功能** - 收藏并筛选最佳生成结果
+- 🌓 **主题同步** - 自动跟随 Rhino 的浅色/深色主题
+- 📂 **历史管理** - 自动保存，支持浏览和重新生成
+
+### 📋 环境要求
+
+- Rhino 8 (Windows)
+- .NET 7.0 SDK
+- Node.js 18+
+
+### 🚀 快速开始
+
+```bash
+# 一键构建
+./build.ps1
+
+# 输出: dist/AIRenderPanel.rhp
+```
+
+在 Rhino 中:
+1. 运行 `PlugInManager`
+2. 安装 `dist/AIRenderPanel.rhp`
+3. 重启 Rhino
+4. 运行命令 `AIRenderPanel`
+
+### ⚙️ 配置
+
+设置文件: `%AppData%/AIRenderPanel/settings.json`
+
+| 键 | 说明 |
+|-----|-------------|
+| `apiKey` | Gemini API Key |
+| `outputMode` | `auto` (跟随 .3dm) 或 `fixed` |
+| `outputFolder` | 自定义输出目录 |
+
+### 🛠️ 开发调试
+
+```bash
+# 前端开发服务器
+cd src/web-ui && npm run dev
+
+# 后端构建
+cd src/AIRenderPanel && dotnet build
+```
+
+---
+
+## 📁 Project Structure
+
+```
+src/
+├── AIRenderPanel/          # C# Plugin
+│   ├── Bridge/             # Frontend-Backend communication
+│   ├── Providers/          # AI Providers
+│   └── Services/           # Business services
+└── web-ui/                 # React Frontend
+    └── src/
+        ├── components/     # UI Components
+        ├── hooks/          # React Hooks
+        └── services/       # API Services
+```
+
+## 📄 License
 
 MIT
