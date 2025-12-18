@@ -2390,3 +2390,54 @@ body {
   border-top: 1px solid var(--color-border);
   background: var(--color-bg-tertiary);
 }
+
+/* 颜色选择器 */
+.annotation-colors {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.annotation-color-btn {
+  width: 24px;
+  height: 24px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.annotation-color-btn:hover {
+  transform: scale(1.1);
+}
+
+.annotation-color-btn.active {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-bg-primary);
+}
+
+/* 橡皮擦模式 */
+.annotation-eraser-modes {
+  display: flex;
+  gap: 2px;
+  margin-left: var(--space-2);
+}
+
+.annotation-mode-btn {
+  padding: 4px 8px;
+  font-size: 11px;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.annotation-mode-btn:hover {
+  background: var(--color-bg-hover);
+}
+
+.annotation-mode-btn.active {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: white;
+}

@@ -447,11 +447,11 @@ function App() {
                         {/* 参考图上传 */}
                         <div className="control-section swiss-grid-b">
                             <label className="type-label">参考图 / Reference Images</label>
-                            <span className="type-sub">最多 4 张 / Max 4 images</span>
+                            <span className="type-sub">最多 3 张，截图为图1 / Max 3, screenshot is Image 1</span>
 
                             {/* 上传区域 */}
                             <div style={{ marginTop: 'var(--space-3)' }}>
-                                {referenceImages.length < 4 && (
+                                {referenceImages.length < 3 && (
                                     <label className="reference-upload-label">
                                         <input
                                             type="file"
@@ -460,7 +460,7 @@ function App() {
                                             style={{ display: 'none' }}
                                             onChange={(e) => {
                                                 const files = Array.from(e.target.files || []);
-                                                const remainingSlots = 4 - referenceImages.length;
+                                                const remainingSlots = 3 - referenceImages.length;
                                                 const filesToProcess = files.slice(0, remainingSlots);
 
                                                 filesToProcess.forEach(file => {
@@ -486,7 +486,7 @@ function App() {
                                     <div className="reference-thumbnails">
                                         {referenceImages.map((image, index) => (
                                             <div key={index} className="reference-thumbnail">
-                                                <img src={image} alt={`参考图 ${index + 1}`} />
+                                                <img src={image} alt={`参考图 ${index + 2}`} />
                                                 <button
                                                     className="reference-delete"
                                                     onClick={() => {
@@ -496,7 +496,7 @@ function App() {
                                                 >
                                                     <X size={14} />
                                                 </button>
-                                                <span className="reference-index">{index + 1}</span>
+                                                <span className="reference-index">图{index + 2}</span>
                                             </div>
                                         ))}
                                     </div>
