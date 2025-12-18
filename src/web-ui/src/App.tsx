@@ -498,33 +498,33 @@ function App() {
                             </div>
                         </div>
 
-                        {/* 视图来源 */
-                            <div className="control-section swiss-grid-b">
-                                <label className="type-label">视图来源 / Source</label>
-                                <div className="option-cards">
-                                    <button
-                                        className={`option-card ${source === 'active' ? 'active' : ''}`}
-                                        onClick={() => setSource('active')}
-                                    >
-                                        当前视口
-                                        <span className="type-sub">Active Viewport</span>
-                                    </button>
-                                    <button
-                                        className={`option-card ${source === 'named' ? 'active' : ''}`}
-                                        onClick={() => setSource('named')}
-                                    >
-                                        命名视图
-                                        <span className="type-sub">Named View</span>
-                                    </button>
-                                </div>
+                        {/* 视图来源 */}
+                        <div className="control-section swiss-grid-b">
+                            <label className="type-label">视图来源 / Source</label>
+                            <div className="option-cards">
                                 <button
-                                    className="btn-capture"
-                                    onClick={handleCapturePreview}
-                                    disabled={isProcessing}
+                                    className={`option-card ${source === 'active' ? 'active' : ''}`}
+                                    onClick={() => setSource('active')}
                                 >
-                                    <ScanEye size={16} style={{ marginRight: '8px' }} /> 截取当前视图预览 / Capture Preview
+                                    当前视口
+                                    <span className="type-sub">Active Viewport</span>
+                                </button>
+                                <button
+                                    className={`option-card ${source === 'named' ? 'active' : ''}`}
+                                    onClick={() => setSource('named')}
+                                >
+                                    命名视图
+                                    <span className="type-sub">Named View</span>
                                 </button>
                             </div>
+                            <button
+                                className="btn-capture"
+                                onClick={handleCapturePreview}
+                                disabled={isProcessing}
+                            >
+                                <ScanEye size={16} style={{ marginRight: '8px' }} /> 截取当前视图预览 / Capture Preview
+                            </button>
+                        </div>
 
                         {/* 命名视图选择 */}
                         {source === 'named' && (
