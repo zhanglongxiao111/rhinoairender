@@ -282,6 +282,31 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
 
     // 鼠标按下
     const handleMouseDown = (e: React.MouseEvent) => {
+        // 如果当前正在编辑文字，先保存
+        if (editingText && textInputValue.trim()) {
+            if (editingText.id) {
+                // 更新现有文字
+                setTexts(prev => prev.map(t =>
+                    t.id === editingText.id
+                        ? { ...t, text: textInputValue, color: currentColor, fontSize: currentFontSize }
+                        : t
+                ));
+            } else {
+                // 添加新文字
+                setTexts(prev => [...prev, {
+                    id: generateId(),
+                    x: editingText.x,
+                    y: editingText.y + currentFontSize,
+                    text: textInputValue,
+                    color: currentColor,
+                    fontSize: currentFontSize
+                }]);
+            }
+        }
+        // 清除编辑状态
+        setEditingText(null);
+        setTextInputValue('');
+
         const pos = getCanvasPosition(e);
         if (!pos) return;
 
@@ -701,7 +726,6 @@ export function AnnotationEditor({ imageUrl, onApply, onCancel }: AnnotationEdit
                                         setTextInputValue('');
                                     }
                                 }}
-                                onBlur={confirmTextInput}
                                 placeholder="输入文字..."
                                 autoFocus
                                 style={{
