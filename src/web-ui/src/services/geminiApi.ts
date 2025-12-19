@@ -5,6 +5,8 @@
 
 // API 端点
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
+// Vertex AI Express 端点
+const VERTEX_AI_BASE = 'https://aiplatform.googleapis.com/v1/publishers/google/models';
 
 // 模型名称
 const MODEL_PRO = 'gemini-3-pro-image-preview';    // 专业模式
@@ -21,6 +23,16 @@ export interface GeminiGenerateResult {
     images: string[];  // base64 图片数组
     model: string;
     requestId: string;
+}
+
+/**
+ * API 端点配置
+ */
+export interface ApiEndpointConfig {
+    useGeminiApi: boolean;      // 使用 Gemini Developer API
+    useVertexAI: boolean;       // 使用 Vertex AI Express
+    apiKey?: string;            // Gemini Developer API Key
+    vertexApiKey?: string;      // Vertex AI Express API Key
 }
 
 /**
@@ -63,12 +75,14 @@ async function adjustContrast(imageBase64: string, contrastPercent: number): Pro
 }
 
 /**
- * 构建 Gemini API 请求体
+ * 构建 API 请求体
+ * @param isVertexAI 是否为 Vertex AI 端点（需要 role 字段）
  */
 function buildRequestBody(
     prompt: string,
     imageBase64: string,
-    options: GeminiGenerateOptions
+    options: GeminiGenerateOptions,
+    isVertexAI: boolean = false
 ): object {
     const parts: object[] = [];
 
@@ -107,8 +121,13 @@ function buildRequestBody(
         };
     }
 
+    // Vertex AI 需要 role 字段，Gemini API 不需要
+    const contentObject = isVertexAI
+        ? { role: 'user', parts }
+        : { parts };
+
     return {
-        contents: [{ parts }],
+        contents: [contentObject],
         generationConfig
     };
 }
@@ -159,22 +178,26 @@ function parseImageFromResponse(responseJson: any): string | null {
 
 /**
  * 生成单张图片
+ * @param endpointName 端点名称，用于日志
+ * @param endpointUrl 完整的端点 URL（含 API Key）
+ * @param isVertexAI 是否为 Vertex AI 端点
  */
 async function generateSingleImage(
     prompt: string,
     imageBase64: string,
-    apiKey: string,
     options: GeminiGenerateOptions,
+    endpointName: string,
+    endpointUrl: string,
+    isVertexAI: boolean,
     signal?: AbortSignal
 ): Promise<string> {
-    const model = options.mode === 'pro' ? MODEL_PRO : MODEL_FLASH;
-    const url = `${GEMINI_API_BASE}/${model}:generateContent?key=${apiKey}`;
+    const requestBody = buildRequestBody(prompt, imageBase64, options, isVertexAI);
 
-    const requestBody = buildRequestBody(prompt, imageBase64, options);
+    console.log(`[${endpointName}] 发送请求...`);
+    console.log(`[${endpointName}] URL: ${endpointUrl.replace(/key=.*/, 'key=***')}`);
+    console.log(`[${endpointName}] 使用 role 字段: ${isVertexAI}`);
 
-    console.log(`[Gemini API] 发送请求到 ${model}...`);
-
-    const response = await fetch(url, {
+    const response = await fetch(endpointUrl, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -192,14 +215,14 @@ async function generateSingleImage(
         } catch {
             errorMessage = errorText.substring(0, 200);
         }
-        throw new Error(`Gemini API 错误: ${errorMessage}`);
+        throw new Error(`${endpointName} 错误: ${errorMessage}`);
     }
 
     const responseJson = await response.json();
     const imageData = parseImageFromResponse(responseJson);
 
     if (!imageData) {
-        throw new Error('Gemini API 未返回图像');
+        throw new Error(`${endpointName} 未返回图像`);
     }
 
     return imageData;
@@ -209,52 +232,108 @@ async function generateSingleImage(
  * 主入口：生成图像
  * @param prompt 提示词
  * @param imageBase64 参考图像的 base64（不含 data:image/png;base64, 前缀）
- * @param apiKey Gemini API Key
  * @param count 生成数量
  * @param options 生成选项
+ * @param apiConfig API 端点配置
  * @param onProgress 进度回调
  */
 export async function generateImages(
     prompt: string,
     imageBase64: string,
-    apiKey: string,
     count: number,
     options: GeminiGenerateOptions,
+    apiConfig: ApiEndpointConfig,
     onProgress?: (completed: number, total: number) => void,
     signal?: AbortSignal
 ): Promise<GeminiGenerateResult> {
-    if (!apiKey) {
-        throw new Error('API Key 未配置');
+    const model = options.mode === 'pro' ? MODEL_PRO : MODEL_FLASH;
+
+    // 构建可用的端点列表（包含名称、URL 和是否为 Vertex AI）
+    const endpoints: { name: string; url: string; isVertexAI: boolean }[] = [];
+
+    if (apiConfig.useGeminiApi && apiConfig.apiKey) {
+        // Gemini Developer API 端点
+        const url = `${GEMINI_API_BASE}/${model}:generateContent?key=${apiConfig.apiKey}`;
+        endpoints.push({ name: 'Gemini API', url, isVertexAI: false });
     }
+    if (apiConfig.useVertexAI && apiConfig.vertexApiKey) {
+        // Vertex AI Express 端点（注意 URL 格式不同！）
+        const url = `${VERTEX_AI_BASE}/${model}:generateContent?key=${apiConfig.vertexApiKey}`;
+        endpoints.push({ name: 'Vertex AI', url, isVertexAI: true });
+    }
+
+    // 如果没有配置有效端点，检查是否有任何可用的 API Key
+    if (endpoints.length === 0) {
+        // 如果有 apiKey 但未勾选任何端点，默认使用 Gemini API
+        if (apiConfig.apiKey) {
+            const url = `${GEMINI_API_BASE}/${model}:generateContent?key=${apiConfig.apiKey}`;
+            endpoints.push({ name: 'Gemini API', url, isVertexAI: false });
+            console.log('[API] 未选择端点，默认使用 Gemini API');
+        } else if (apiConfig.vertexApiKey) {
+            const url = `${VERTEX_AI_BASE}/${model}:generateContent?key=${apiConfig.vertexApiKey}`;
+            endpoints.push({ name: 'Vertex AI', url, isVertexAI: true });
+            console.log('[API] 未选择端点，默认使用 Vertex AI');
+        } else {
+            throw new Error('API Key 未配置。请在设置中配置 Gemini API Key 或 Vertex AI API Key。');
+        }
+    }
+
+    console.log(`[API] 配置的端点: ${endpoints.map(e => e.name).join(', ')}`);
+    console.log(`[API] 使用模型: ${model}`);
 
     // 快速模式下进行对比度预处理
     let processedImage = imageBase64;
     if (options.mode === 'flash' && options.contrastAdjust && options.contrastAdjust < 0) {
-        console.log(`[Gemini API] 快速模式：应用对比度调整 ${options.contrastAdjust}%`);
+        console.log(`[API] 快速模式：应用对比度调整 ${options.contrastAdjust}%`);
         processedImage = await adjustContrast(imageBase64, options.contrastAdjust);
     }
 
     const modeText = options.mode === 'pro' ? '专业模式' : '快速模式';
-    console.log(`[Gemini API] ${modeText}：开始并发生成 ${count} 张图片`);
+    console.log(`[API] ${modeText}：开始并发生成 ${count} 张图片`);
 
-    // 并发生成所有图片
-    const tasks = Array.from({ length: count }, (_, i) =>
-        generateSingleImage(prompt, processedImage, apiKey, options, signal)
-            .then(result => {
-                onProgress?.(i + 1, count);
-                return result;
-            })
-    );
+    // 尝试使用端点生成图片，支持 Fallback
+    let lastError: Error | null = null;
 
-    const results = await Promise.all(tasks);
+    for (const endpoint of endpoints) {
+        try {
+            console.log(`[API] 尝试使用 ${endpoint.name}...`);
 
-    console.log(`[Gemini API] 全部 ${count} 张图片生成完成`);
+            // 并发生成所有图片
+            const tasks = Array.from({ length: count }, (_, i) =>
+                generateSingleImage(prompt, processedImage, options, endpoint.name, endpoint.url, endpoint.isVertexAI, signal)
+                    .then(result => {
+                        onProgress?.(i + 1, count);
+                        return result;
+                    })
+            );
 
-    return {
-        images: results,
-        model: options.mode === 'pro' ? MODEL_PRO : MODEL_FLASH,
-        requestId: crypto.randomUUID().substring(0, 8)
-    };
+            const results = await Promise.all(tasks);
+
+            console.log(`[${endpoint.name}] 全部 ${count} 张图片生成完成`);
+
+            return {
+                images: results,
+                model: model,
+                requestId: crypto.randomUUID().substring(0, 8)
+            };
+        } catch (error) {
+            lastError = error instanceof Error ? error : new Error(String(error));
+            console.warn(`[${endpoint.name}] 失败: ${lastError.message}`);
+
+            // 如果是取消操作，直接抛出
+            if (lastError.name === 'AbortError') {
+                throw lastError;
+            }
+
+            // 继续尝试下一个端点
+            if (endpoints.indexOf(endpoint) < endpoints.length - 1) {
+                console.log(`[API] 切换到下一个端点...`);
+            }
+        }
+    }
+
+    // 所有端点都失败
+    throw lastError ?? new Error('所有 API 端点都失败了');
 }
 
 /**

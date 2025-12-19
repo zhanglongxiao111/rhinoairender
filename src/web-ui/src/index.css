@@ -496,7 +496,7 @@ body {
   border: 1px solid transparent;
   color: var(--color-text-primary);
   font-family: var(--font-mono);
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
   line-height: 1.6;
   resize: none;
   transition: border-color var(--transition-fast);

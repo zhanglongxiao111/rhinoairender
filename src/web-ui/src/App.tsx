@@ -306,8 +306,12 @@ function App() {
             return;
         }
 
-        if (!settings.apiKey) {
-            setError('请先在设置中配置 API Key');
+        // 检查是否配置了任一 API Key
+        const hasGeminiKey = settings.useGeminiApi !== false && settings.apiKey;
+        const hasVertexKey = settings.useVertexAI === true && settings.vertexApiKey;
+
+        if (!hasGeminiKey && !hasVertexKey) {
+            setError('请先在设置中配置 API Key（Gemini 或 Vertex AI）');
             return;
         }
 
@@ -365,13 +369,18 @@ function App() {
             const result = await generateImages(
                 prompt.trim(),
                 screenshotBase64,
-                settings.apiKey,
                 count,
                 {
                     mode: mode === 'flash' ? 'flash' : 'pro',
                     resolution,
                     aspectRatio: aspectRatio || undefined,
                     contrastAdjust: mode === 'flash' ? contrastAdjust : undefined,
+                },
+                {
+                    useGeminiApi: settings.useGeminiApi !== false,
+                    useVertexAI: settings.useVertexAI === true,
+                    apiKey: settings.apiKey,
+                    vertexApiKey: settings.vertexApiKey,
                 },
                 (completed, total) => {
                     const percent = 30 + Math.round((completed / total) * 50);
